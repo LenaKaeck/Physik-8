@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feldlinien sichtbar machen</title>
+<style>
+  :root{
+    --bg-1:#24402F; --bg-2:#1B3323; --chalk:#F3EFE3; --chalk-dim:#C9D6C4; --yellow:#E8C25B;
+    --red:#d62828; --blue:#1d4ed8; --ink:#1f2d24;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--chalk);
+    background:radial-gradient(circle at 15% 0%,rgba(255,255,255,.05) 0,transparent 45%),linear-gradient(180deg,var(--bg-1),var(--bg-2));
+    display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;
+  }
+  @supports (height:100dvh){ body{height:100dvh;} }
+
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:8px 16px 0;}
+  h1{margin:0;font-size:clamp(1rem,1.9vw,1.4rem);line-height:1.25;font-weight:700;}
+  h1 span{color:var(--yellow);}
+  details.help{display:contents;}
+  details.help summary{
+    list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:0 12px 0 8px;border-radius:999px;
+    border:1.5px dashed rgba(243,239,227,.45);color:var(--chalk-dim);font-size:.88rem;font-weight:600;
+  }
+  summary::-webkit-details-marker{display:none;}
+  details.help summary::before{content:"?";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--yellow);color:var(--bg-1);font-weight:800;font-size:.8rem;}
+  details.help p{flex-basis:100%;margin:2px 0 0;padding:8px 14px;max-width:62ch;line-height:1.45;color:var(--chalk);
+    background:rgba(0,0,0,.18);border-left:4px solid var(--yellow);border-radius:0 10px 10px 0;}
+
+  .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 16px;position:relative;z-index:30;}
+  .group{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-right:10px;margin-right:2px;border-right:1px solid rgba(243,239,227,.2);}
+  .group:last-child{border-right:0;}
+
+  .btn{
+    min-height:44px;min-width:44px;padding:0 14px;border-radius:10px;border:0;background:var(--chalk);color:var(--ink);
+    font:700 .95rem system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;touch-action:manipulation;
+    display:inline-flex;align-items:center;gap:8px;user-select:none;-webkit-user-select:none;white-space:nowrap;
+    box-shadow:0 3px 0 rgba(0,0,0,.28);transition:transform .08s,box-shadow .08s,background .12s;
+  }
+  .btn:hover{background:#fff;}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.28);}
+  .btn:focus-visible,summary:focus-visible{outline:3px solid var(--yellow);outline-offset:2px;}
+  .btn.drag{touch-action:none;cursor:grab;padding:0 16px 0 6px;font-size:1rem;}
+  .btn.accent{background:var(--yellow);}
+  .dot{width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-weight:800;font-size:1.3rem;line-height:1;
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.18);}
+  .dot.p{background:var(--red);} .dot.n{background:var(--blue);}
+
+  /* Aufklappmenü "Mehr" */
+  details.more{position:relative;}
+  details.more > summary{
+    list-style:none;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 14px;border-radius:10px;
+    border:1.5px solid rgba(243,239,227,.45);color:var(--chalk);font:700 .95rem system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none;
+  }
+  details.more > summary::after{content:"▾";transition:transform .15s;}
+  details.more[open] > summary{background:rgba(243,239,227,.12);border-color:var(--yellow);color:var(--yellow);}
+  details.more[open] > summary::after{transform:rotate(180deg);}
+  .menu{
+    position:absolute;top:calc(100% + 6px);right:0;min-width:270px;padding:10px;display:flex;flex-direction:column;gap:8px;
+    background:#16291e;border:1px solid rgba(243,239,227,.25);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.5);
+  }
+  .toggle{background:transparent;color:var(--chalk);box-shadow:none;border:1.5px solid rgba(243,239,227,.35);padding:0 14px 0 8px;justify-content:flex-start;}
+  .toggle:hover{background:rgba(243,239,227,.1);}
+  .toggle:active{transform:none;box-shadow:none;}
+  .toggle .sw{position:relative;width:40px;height:24px;border-radius:999px;background:rgba(243,239,227,.3);transition:background .15s;flex:none;}
+  .toggle .sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;}
+  .toggle[aria-pressed="true"]{border-color:var(--yellow);color:var(--yellow);}
+  .toggle[aria-pressed="true"] .sw{background:var(--yellow);}
+  .toggle[aria-pressed="true"] .sw::after{transform:translateX(16px);background:var(--bg-1);}
+
+  .stage-wrap{
+    flex:1;min-height:0;margin:0 12px 12px;padding:7px;border-radius:16px;
+    background:repeating-linear-gradient(45deg,#8a5a34,#8a5a34 6px,#7a4c2b 6px,#7a4c2b 12px);
+    box-shadow:0 10px 30px rgba(0,0,0,.4);
+  }
+  .stage{position:relative;height:100%;border-radius:10px;overflow:hidden;background:#fff;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:default;}
+  #trash{
+    position:absolute;right:12px;bottom:12px;width:62px;height:62px;border:3px dashed #aab3c5;border-radius:16px;
+    display:grid;place-items:center;font-size:28px;background:rgba(255,255,255,.92);pointer-events:none;transition:all .12s;
+  }
+  #trash.hot{border-color:var(--red);background:#ffe3e3;transform:scale(1.12);}
+  #ghost{position:fixed;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;display:none;place-items:center;
+    color:#fff;font:800 30px/1 system-ui,sans-serif;pointer-events:none;z-index:40;box-shadow:0 6px 16px rgba(0,0,0,.4);}
+
+  /* Schmale Fenster (Hochformat): Seite darf scrollen, Fläche behält eine feste Höhe */
+  @media (max-width:820px){
+    body{overflow:auto;}
+    .stage-wrap{flex:none;height:60vh;min-height:320px;}
+    .group{border-right:0;}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Feldlinien sichtbar machen <span>–</span> Grießkörner im elektrischen Feld</h1>
+    <details class="help">
+      <summary>Anleitung</summary>
+      <p>Zieht Ladungen auf die Fläche. Beobachtet, wie sich die Körner ausrichten. Welche Muster entstehen?</p>
+    </details>
+  </header>
+
+  <div class="toolbar">
+    <div class="group">
+      <button class="btn drag" type="button" data-q="1" aria-label="Positive Ladung auf die Fläche ziehen"><span class="dot p">+</span> Ladung</button>
+      <button class="btn drag" type="button" data-q="-1" aria-label="Negative Ladung auf die Fläche ziehen"><span class="dot n">−</span> Ladung</button>
+    </div>
+    <div class="group">
+      <button class="btn" type="button" data-preset="one">Eine Ladung</button>
+      <button class="btn" type="button" data-preset="dipole">Plus und Minus</button>
+      <button class="btn" type="button" data-preset="same">Zwei gleiche Ladungen</button>
+      <button class="btn" type="button" data-preset="plates">Zwei Platten</button>
+    </div>
+    <div class="group">
+      <button class="btn accent" type="button" id="shuffle">Körner mischen</button>
+      <button class="btn" type="button" id="clear">Alles löschen</button>
+    </div>
+    <div class="group">
+      <details class="more" id="more">
+        <summary>Mehr</summary>
+        <div class="menu">
+          <button class="btn toggle" type="button" id="tLines" aria-pressed="false"><span class="sw"></span>Feldlinien anzeigen</button>
+          <button class="btn toggle" type="button" id="tStrength" aria-pressed="false"><span class="sw"></span>Feldstärke als Helligkeit</button>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="stage-wrap">
+    <div class="stage" id="stage">
+      <canvas id="c"></canvas>
+      <div id="trash" aria-hidden="true">🗑️</div>
+    </div>
+  </div>
+  <div id="ghost"></div>
+
+<script>
+"use strict";
+
+/* ---------- Konstanten ---------- */
+var R = 20;           // Radius der gezeichneten Ladung (px)
+var HIDE_R = 30;      // Körner näher als das werden ausgeblendet
+var E0 = 0.01;        // Feldstärke, bei der die Drehgeschwindigkeit halb so groß ist wie maximal
+var TURN = 0.10;      // maximaler Anteil der Restdrehung pro Frame
+var GRAINS = 2000;
+var PLATE_N = 15;
+
+/* ---------- Zustand ---------- */
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+var stage = document.getElementById("stage");
+var trash = document.getElementById("trash");
+var ghost = document.getElementById("ghost");
+
+var W = 0, H = 0, dpr = 1;
+var charges = [];          // frei platzierbare Punktladungen {id,x,y,q,drag}
+var nextId = 1;
+var platesOn = false, plateCharges = [], plateRects = [];
+var allC = [];             // Punktladungen + Plattenladungen
+var grains = [], L = 12;
+var showLines = false, showStrength = false;
+var fieldDirty = true, linesDirty = true, needDraw = true;
+var lines = [];
+var drag = null, lastTap = null;
+
+/* ---------- Hilfsfunktionen ---------- */
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+function touch(){
+  allC = charges.concat(plateCharges);
+  fieldDirty = true; linesDirty = true; needDraw = true;
+}
+
+function buildPlates(){
+  plateCharges = []; plateRects = [];
+  if(!platesOn) return;
+  var xl = W * 0.32, xr = W * 0.68, y0 = H * 0.18, y1 = H * 0.82;
+  for(var i = 0; i < PLATE_N; i++){
+    var y = y0 + (y1 - y0) * i / (PLATE_N - 1);
+    plateCharges.push({x:xl, y:y, q:1, plate:true});
+    plateCharges.push({x:xr, y:y, q:-1, plate:true});
+  }
+  var pad = (y1 - y0) / (PLATE_N - 1) / 2;
+  plateRects.push({x:xl - 6, y:y0 - pad, w:12, h:y1 - y0 + 2 * pad, q:1});
+  plateRects.push({x:xr - 6, y:y0 - pad, w:12, h:y1 - y0 + 2 * pad, q:-1});
+}
+
+/* ---------- Körner ---------- */
+function makeGrains(){
+  grains = [];
+  if(W < 40 || H < 40) return;
+  var sp = Math.sqrt(W * H / GRAINS), n, guard = 0;
+  do {
+    n = Math.floor(W / sp) * Math.floor(H / sp);
+    if(n > 2500) sp *= 1.02; else if(n < 1500) sp *= 0.98; else break;
+  } while(++guard < 60);
+  L = clamp(sp * 0.7, 10, 14);
+  var cols = Math.floor(W / sp), rows = Math.floor(H / sp);
+  var ox = (W - cols * sp) / 2 + sp / 2, oy = (H - rows * sp) / 2 + sp / 2;
+  for(var j = 0; j < rows; j++){
+    for(var i = 0; i < cols; i++){
+      grains.push({
+        x: ox + i * sp + (Math.random() - 0.5) * 0.6 * sp,
+        y: oy + j * sp + (Math.random() - 0.5) * 0.6 * sp,
+        a: Math.random() * Math.PI, ta: 0, k: 0, s: 0, hide: false
+      });
+    }
+  }
+}
+
+function randomizeGrains(){
+  for(var i = 0; i < grains.length; i++) grains[i].a = Math.random() * Math.PI;
+  needDraw = true;
+}
+
+function recomputeField(){
+  var nC = allC.length;
+  for(var i = 0; i < grains.length; i++){
+    var g = grains[i];
+    if(nC === 0){ g.k = 0; g.s = 0; g.hide = false; continue; }
+    var ex = 0, ey = 0, hide = false;
+    for(var j = 0; j < nC; j++){
+      var c = allC[j];
+      var dx = g.x - c.x, dy = g.y - c.y;
+      var r2 = dx * dx + dy * dy + 4, r = Math.sqrt(r2);
+      var m = c.q * 1e4 / r2;
+      ex += m * dx / r; ey += m * dy / r;
+      if(!c.plate && r2 < HIDE_R * HIDE_R) hide = true;
+    }
+    for(var p = 0; p < plateRects.length; p++){
+      var rc = plateRects[p];
+      if(g.x > rc.x - 10 && g.x < rc.x + rc.w + 10 && g.y > rc.y - 10 && g.y < rc.y + rc.h + 10) hide = true;
+    }
+    var mag = Math.sqrt(ex * ex + ey * ey);
+    g.ta = Math.atan2(ey, ex);
+    g.k = mag / (mag + E0);
+    g.s = mag / (mag + 0.3);
+    g.hide = hide;
+  }
+}
+
+function stepGrains(){
+  var moved = false, HALF = Math.PI / 2;
+  for(var i = 0; i < grains.length; i++){
+    var g = grains[i];
+    if(g.k <= 0) continue;
+    var d = g.ta - g.a;
+    d = ((d + HALF) % Math.PI + Math.PI) % Math.PI - HALF;   // kürzeste Drehung, Stäbchen ohne Richtung
+    var delta = d * TURN * g.k;
+    if(Math.abs(delta) > 1e-4){ g.a += delta; moved = true; }
+  }
+  return moved;
+}
+
+/* ---------- Feldlinien ---------- */
+function fieldAt(x, y){
+  var ex = 0, ey = 0;
+  for(var j = 0; j < allC.length; j++){
+    var c = allC[j];
+    var dx = x - c.x, dy = y - c.y;
+    var r2 = dx * dx + dy * dy + 4, r = Math.sqrt(r2);
+    var m = c.q * 1e4 / r2;
+    ex += m * dx / r; ey += m * dy / r;
+  }
+  return [ex, ey];
+}
+
+function hitsTarget(x, y, dir){
+  for(var j = 0; j < charges.length; j++){
+    var c = charges[j];
+    if(c.q * dir < 0){
+      var dx = x - c.x, dy = y - c.y;
+      if(dx * dx + dy * dy < (R + 1) * (R + 1)) return true;
+    }
+  }
+  for(var p = 0; p < plateRects.length; p++){
+    var rc = plateRects[p];
+    if(rc.q * dir < 0 && x > rc.x - 2 && x < rc.x + rc.w + 2 && y > rc.y - 2 && y < rc.y + rc.h + 2) return true;
+  }
+  return false;
+}
+
+function trace(sx, sy, dir){
+  var h = 4, x = sx, y = sy, pts = [[x, y]];
+  function f(px, py){
+    var e = fieldAt(px, py), m = Math.sqrt(e[0] * e[0] + e[1] * e[1]);
+    return m < 1e-12 ? null : [dir * e[0] / m, dir * e[1] / m];
+  }
+  var mg = Math.max(W, H) * 1.5;   // Linien dürfen weit außerhalb weiterlaufen und zur Fläche zurückkehren
+  for(var i = 0; i < 2500; i++){
+    var k1 = f(x, y); if(!k1) break;
+    var k2 = f(x + h / 2 * k1[0], y + h / 2 * k1[1]); if(!k2) break;
+    var k3 = f(x + h / 2 * k2[0], y + h / 2 * k2[1]); if(!k3) break;
+    var k4 = f(x + h * k3[0], y + h * k3[1]); if(!k4) break;
+    x += h / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
+    y += h / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
+    pts.push([x, y]);
+    if(x < -mg || x > W + mg || y < -mg || y > H + mg) break;
+    if(hitsTarget(x, y, dir)) break;
+  }
+  return pts;
+}
+
+function computeLines(){
+  lines = [];
+  if(allC.length === 0) return;
+  var hasPos = allC.some(function(c){ return c.q > 0; });
+  var dir = hasPos ? 1 : -1, sign = hasPos ? 1 : -1, starts = [];
+  var N = 14, i;
+  for(i = 0; i < charges.length; i++){
+    var c = charges[i];
+    if(c.q !== sign) continue;
+    for(var k = 0; k < N; k++){
+      var a = 2 * Math.PI * k / N + 0.2;
+      starts.push([c.x + (R + 4) * Math.cos(a), c.y + (R + 4) * Math.sin(a)]);
+    }
+  }
+  for(i = 0; i < plateRects.length; i++){
+    var rc = plateRects[i];
+    if(rc.q !== sign) continue;
+    var inward = sign > 0 ? 1 : -1;                     // + Platte links: nach rechts, − Platte rechts: nach links
+    for(var j = 0; j < plateCharges.length; j++){
+      var pc = plateCharges[j];
+      if(pc.q === sign) starts.push([pc.x + inward * 10, pc.y]);
+    }
+  }
+  for(i = 0; i < starts.length; i++){
+    var pts = trace(starts[i][0], starts[i][1], dir);
+    if(pts.length < 3) continue;
+    var arrows = [], acc = 0, next = 50;
+    for(var q = 1; q < pts.length; q++){
+      var sx = pts[q][0] - pts[q - 1][0], sy = pts[q][1] - pts[q - 1][1];
+      acc += Math.sqrt(sx * sx + sy * sy);
+      if(acc >= next){
+        arrows.push({x:pts[q][0], y:pts[q][1], a:Math.atan2(dir * sy, dir * sx)});
+        next += 130;
+      }
+    }
+    lines.push({pts:pts, arrows:arrows});
+  }
+}
+
+/* ---------- Zeichnen ---------- */
+function drawGrains(){
+  ctx.lineWidth = 2; ctx.lineCap = "butt";
+  var hl = L / 2, i, g;
+  if(!showStrength){
+    ctx.strokeStyle = "#2b2b2b";
+    ctx.beginPath();
+    for(i = 0; i < grains.length; i++){
+      g = grains[i]; if(g.hide) continue;
+      var cx = Math.cos(g.a) * hl, cy = Math.sin(g.a) * hl;
+      ctx.moveTo(g.x - cx, g.y - cy); ctx.lineTo(g.x + cx, g.y + cy);
+    }
+    ctx.stroke();
+    return;
+  }
+  var B = 8, b;
+  for(b = 0; b < B; b++){
+    ctx.strokeStyle = "rgba(25,25,25," + (0.12 + 0.88 * (b + 0.5) / B).toFixed(3) + ")";
+    ctx.beginPath();
+    for(i = 0; i < grains.length; i++){
+      g = grains[i]; if(g.hide) continue;
+      var a = 0.12 + 0.88 * Math.min(1, g.s * 1.4);
+      var bk = Math.min(B - 1, Math.floor((a - 0.12) / 0.88 * B));
+      if(bk !== b) continue;
+      var dx = Math.cos(g.a) * hl, dy = Math.sin(g.a) * hl;
+      ctx.moveTo(g.x - dx, g.y - dy); ctx.lineTo(g.x + dx, g.y + dy);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawLines(){
+  ctx.strokeStyle = "#7a1fa2"; ctx.fillStyle = "#7a1fa2"; ctx.lineWidth = 1.6; ctx.lineJoin = "round";
+  var i, j;
+  for(i = 0; i < lines.length; i++){
+    var pts = lines[i].pts;
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for(j = 1; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]);
+    ctx.stroke();
+    var ar = lines[i].arrows;
+    for(j = 0; j < ar.length; j++){
+      ctx.save(); ctx.translate(ar[j].x, ar[j].y); ctx.rotate(ar[j].a);
+      ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-5, -4.5); ctx.lineTo(-5, 4.5); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+function drawCharge(c){
+  var gr = ctx.createRadialGradient(c.x - 6, c.y - 7, 2, c.x, c.y, R);
+  if(c.q > 0){ gr.addColorStop(0, "#ff6b6b"); gr.addColorStop(1, "#c1121f"); }
+  else { gr.addColorStop(0, "#6f9bff"); gr.addColorStop(1, "#1840b8"); }
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = c.drag ? 16 : 7; ctx.shadowOffsetY = 2;
+  ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, 2 * Math.PI); ctx.fillStyle = gr; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, 2 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(c.x - 8, c.y); ctx.lineTo(c.x + 8, c.y);
+  if(c.q > 0){ ctx.moveTo(c.x, c.y - 8); ctx.lineTo(c.x, c.y + 8); }
+  ctx.stroke();
+}
+
+function draw(){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  drawGrains();
+  if(showLines) drawLines();
+  for(var p = 0; p < plateRects.length; p++){
+    var rc = plateRects[p];
+    ctx.fillStyle = rc.q > 0 ? "#d62828" : "#1d4ed8";
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(rc.x, rc.y, rc.w, rc.h, 6); else ctx.rect(rc.x, rc.y, rc.w, rc.h);
+    ctx.fill();
+  }
+  for(var i = 0; i < charges.length; i++) drawCharge(charges[i]);
+}
+
+function frame(){
+  if(fieldDirty){ recomputeField(); fieldDirty = false; needDraw = true; }
+  if(showLines && linesDirty){ computeLines(); linesDirty = false; needDraw = true; }
+  if(stepGrains()) needDraw = true;
+  if(needDraw){ draw(); needDraw = false; }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Größe ---------- */
+function resize(){
+  var r = stage.getBoundingClientRect();
+  var nw = Math.max(1, Math.floor(r.width)), nh = Math.max(1, Math.floor(r.height));
+  if(nw === W && nh === H && dpr === (window.devicePixelRatio || 1)) return;
+  if(W > 0){
+    for(var i = 0; i < charges.length; i++){
+      charges[i].x = charges[i].x * nw / W; charges[i].y = charges[i].y * nh / H;
+    }
+  }
+  W = nw; H = nh; dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
+  buildPlates(); makeGrains(); touch();
+}
+window.addEventListener("resize", resize);
+if(window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+
+/* ---------- Bedienung ---------- */
+function toLocal(e){
+  var r = canvas.getBoundingClientRect();
+  return {x:e.clientX - r.left, y:e.clientY - r.top};
+}
+function inCanvas(e){
+  var r = canvas.getBoundingClientRect();
+  return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+}
+function overTrash(e){
+  var r = trash.getBoundingClientRect();
+  return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+}
+function removeCharge(c){
+  var i = charges.indexOf(c);
+  if(i >= 0){ charges.splice(i, 1); touch(); }
+}
+function hitCharge(x, y){
+  for(var i = charges.length - 1; i >= 0; i--){
+    var c = charges[i], dx = x - c.x, dy = y - c.y;
+    if(dx * dx + dy * dy <= (R + 10) * (R + 10)) return c;
+  }
+  return null;
+}
+function placeCharge(c, x, y){
+  c.x = clamp(x, R, W - R); c.y = clamp(y, R, H - R);
+  touch();
+}
+
+/* Vorhandene Ladung verschieben */
+canvas.addEventListener("pointerdown", function(e){
+  if(drag) return;
+  var p = toLocal(e), c = hitCharge(p.x, p.y);
+  if(!c) return;
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  c.drag = true;
+  drag = {src:"canvas", c:c, id:e.pointerId, ox:c.x - p.x, oy:c.y - p.y, sx:e.clientX, sy:e.clientY, moved:false};
+  needDraw = true;
+});
+canvas.addEventListener("pointermove", function(e){
+  if(!drag || drag.src !== "canvas" || e.pointerId !== drag.id) return;
+  if(Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 6) drag.moved = true;
+  var p = toLocal(e);
+  placeCharge(drag.c, p.x + drag.ox, p.y + drag.oy);
+  trash.classList.toggle("hot", overTrash(e));
+});
+function endCanvasDrag(e, cancel){
+  if(!drag || drag.src !== "canvas" || e.pointerId !== drag.id) return;
+  var c = drag.c, moved = drag.moved;
+  c.drag = false; drag = null;
+  trash.classList.remove("hot");
+  needDraw = true;
+  if(cancel) return;
+  if(moved){
+    if(overTrash(e)) removeCharge(c);
+    lastTap = null;
+  } else {
+    var now = Date.now();
+    if(lastTap && lastTap.c === c && now - lastTap.t < 450){ removeCharge(c); lastTap = null; }
+    else lastTap = {c:c, t:now};
+  }
+}
+canvas.addEventListener("pointerup", function(e){ endCanvasDrag(e, false); });
+canvas.addEventListener("pointercancel", function(e){ endCanvasDrag(e, true); });
+
+/* Neue Ladung aus der Leiste ziehen */
+function showGhost(q, e){
+  ghost.style.display = "grid";
+  ghost.style.background = q > 0 ? "#d62828" : "#1d4ed8";
+  ghost.textContent = q > 0 ? "+" : "−";
+  ghost.style.left = e.clientX + "px"; ghost.style.top = e.clientY + "px";
+}
+Array.prototype.forEach.call(document.querySelectorAll(".btn.drag"), function(btn){
+  var q = +btn.dataset.q;
+  btn.addEventListener("pointerdown", function(e){
+    if(drag) return;
+    e.preventDefault();
+    btn.setPointerCapture(e.pointerId);
+    drag = {src:"btn", q:q, c:null, id:e.pointerId, sx:e.clientX, sy:e.clientY, moved:false};
+    showGhost(q, e);
+  });
+  btn.addEventListener("pointermove", function(e){
+    if(!drag || drag.src !== "btn" || e.pointerId !== drag.id) return;
+    if(Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 8) drag.moved = true;
+    if(inCanvas(e)){
+      var p = toLocal(e);
+      if(!drag.c){
+        drag.c = {id:nextId++, x:p.x, y:p.y, q:q, drag:true};
+        charges.push(drag.c); ghost.style.display = "none";
+      }
+      placeCharge(drag.c, p.x, p.y);
+    } else {
+      if(drag.c){ removeCharge(drag.c); drag.c = null; }
+      showGhost(q, e);
+    }
+    trash.classList.toggle("hot", overTrash(e));
+  });
+  function end(e, cancel){
+    if(!drag || drag.src !== "btn" || e.pointerId !== drag.id) return;
+    var c = drag.c, moved = drag.moved;
+    drag = null; ghost.style.display = "none"; trash.classList.remove("hot");
+    if(c){
+      c.drag = false;
+      if(cancel || overTrash(e)) removeCharge(c);
+    } else if(!cancel && !moved){
+      // einfacher Tipp: Ladung in die Mitte der Fläche legen
+      charges.push({id:nextId++, x:clamp(W * (0.3 + 0.4 * Math.random()), R, W - R), y:clamp(H * (0.3 + 0.4 * Math.random()), R, H - R), q:q});
+      touch();
+    }
+    needDraw = true;
+  }
+  btn.addEventListener("pointerup", function(e){ end(e, false); });
+  btn.addEventListener("pointercancel", function(e){ end(e, true); });
+});
+
+/* Voreinstellungen und Schalter */
+function preset(name){
+  charges = []; platesOn = false;
+  var cx = W / 2, cy = H / 2;
+  if(name === "one") charges.push({id:nextId++, x:cx, y:cy, q:1});
+  if(name === "dipole"){
+    charges.push({id:nextId++, x:W * 0.35, y:cy, q:1});
+    charges.push({id:nextId++, x:W * 0.65, y:cy, q:-1});
+  }
+  if(name === "same"){
+    charges.push({id:nextId++, x:W * 0.35, y:cy, q:1});
+    charges.push({id:nextId++, x:W * 0.65, y:cy, q:1});
+  }
+  if(name === "plates") platesOn = true;
+  buildPlates(); randomizeGrains(); touch();
+}
+Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function(b){
+  b.addEventListener("click", function(){ preset(b.dataset.preset); });
+});
+document.getElementById("shuffle").addEventListener("click", function(){ randomizeGrains(); });
+document.getElementById("clear").addEventListener("click", function(){
+  charges = []; platesOn = false; buildPlates(); randomizeGrains(); touch();
+});
+function bindToggle(id, set){
+  var b = document.getElementById(id);
+  b.addEventListener("click", function(){
+    var on = b.getAttribute("aria-pressed") !== "true";
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    set(on); linesDirty = true; needDraw = true;
+  });
+}
+bindToggle("tLines", function(on){ showLines = on; });
+bindToggle("tStrength", function(on){ showStrength = on; });
+
+/* Doppelklick der Maus soll keinen Text markieren */
+canvas.addEventListener("dblclick", function(e){ e.preventDefault(); });
+
+/* Start: Anleitung nur bei hohen Fenstern aufgeklappt, damit die Fläche Platz hat */
+document.querySelector("details.help").open = window.innerHeight >= 800;
+
+/* Menü "Mehr" schließt beim Tippen außerhalb */
+document.addEventListener("pointerdown", function(e){
+  var m = document.getElementById("more");
+  if(m.open && !m.contains(e.target)) m.open = false;
+});
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
