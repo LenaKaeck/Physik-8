@@ -260,8 +260,8 @@ const STATIONS = [
       {pre:"Das Natrium-Atom ist nach außen ", opts:["ungeladen","positiv","negativ"], ans:0, post:", weil es gleich viele Protonen und Elektronen hat."},
       {pre:"Gibt es ein Elektron ab, hat es danach ", opts:["10","11","12"], ans:0, post:" Elektronen."},
       {pre:"Es hat jetzt ein Elektron ", opts:["zu wenig","zu viel"], ans:0, post:" im Vergleich zu den Protonen."},
-      {pre:"Das Atom ist jetzt ein ", opts:["positives Ion (Na⁺)","negatives Ion (Na⁻)","Neutron"], ans:0, post:"."},
-      {pre:"Ein Atom, das ein Elektron aufnimmt, wird zu einem ", opts:["negativen Ion","positiven Ion","ungeladenen Atom"], ans:0, post:"."},
+      {pre:"Das Teilchen ist jetzt ein ", opts:["positiv geladenes Teilchen","negativ geladenes Teilchen","ungeladenes Teilchen"], ans:0, post:"."},
+      {pre:"Ein Atom, das ein Elektron aufnimmt, wird zu einem ", opts:["negativ geladenen Teilchen","positiv geladenen Teilchen","ungeladenen Teilchen"], ans:0, post:"."},
     ],
     hint:"Zählt nach: Protonen sind positiv, Elektronen negativ. Fehlt ein Elektron, überwiegt das Positive."
   },
@@ -430,7 +430,7 @@ function showEnd(win){
       <ul><li>Zwei Ladungsarten: Gleichnamige stoßen sich ab, ungleichnamige ziehen sich an.</li>
       <li>Reiben trennt Ladung (Elektronen gehen über). Ein Blitz oder Funke gleicht sie wieder aus.</li>
       <li>Influenz: Ein geladener Körper verschiebt die Ladungen in einem anderen Körper.</li>
-      <li>Atome und Ionen: Elektronen-Überschuss ist negativ, Elektronen-Mangel positiv.</li>
+      <li>Atome: Elektronen-Überschuss ist negativ, Elektronen-Mangel positiv.</li>
       <li>Das Elektroskop zeigt die Menge der Ladung (Q in C), nicht die Ladungsart.</li></ul>`
    : `<h1>Zeit abgelaufen</h1><p>Untersucht: ${Object.keys(solved).length} von 5 Gegenständen. Das Codewort lautet <b class="big">BLITZ</b>. Besprecht gemeinsam, was schwierig war.</p>`;
   el.innerHTML += `<div class="actions"><button class="btn" onclick="location.reload()">Nochmal spielen</button>
