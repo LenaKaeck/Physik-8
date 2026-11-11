@@ -78,7 +78,7 @@
        Die Tür öffnet sich nur mit einem <b>Codewort aus fünf Buchstaben</b>.</p>
     <ul>
       <li>Untersucht <b>5 Gegenstände im Raum</b>. Jeder verrät einen Buchstaben.</li>
-      <li>Ihr habt <b>15 Minuten</b>. Ein Tipp kostet <b>1 Minute</b>.</li>
+      <li>Ihr habt <b>10 Minuten</b>. Ein Tipp kostet <b>1 Minute</b>.</li>
       <li>Die Buchstaben stehen durcheinander. Das Rätsel an der Tür hilft euch.</li>
     </ul>
     <button class="btn" id="go">Raum betreten</button>
@@ -86,7 +86,7 @@
 
   <section id="game" class="hidden">
     <div class="hud">
-      <div class="timer" id="timer">15:00</div>
+      <div class="timer" id="timer">10:00</div>
       <div class="letters" id="letters"></div>
     </div>
 
@@ -204,7 +204,7 @@
 
 <script>
 "use strict";
-const TOTAL = 15*60;
+const TOTAL = 10*60;
 const CODE = "BLITZ";
 const OPT = (a,b,c) => [a,b,c].filter(Boolean);
 
@@ -311,7 +311,7 @@ function startTimer(){
 function timeUp(){
   $("overlay").classList.remove("hidden");
   $("modal").innerHTML = `<h2>⏰ Die Zeit ist um!</h2>
-    <p class="story">Die 15 Minuten sind vorbei. Ihr habt ${Object.keys(solved).length} von 5 Gegenständen untersucht.</p>
+    <p class="story">Die 10 Minuten sind vorbei. Ihr habt ${Object.keys(solved).length} von 5 Gegenständen untersucht.</p>
     <div class="actions"><button class="btn" id="more">Noch 2 Minuten spielen</button>
     <button class="btn ghost" id="fin">Auflösung besprechen</button></div>`;
   $("more").onclick = () => { remaining = 120; closeModal(); renderHud(); startTimer(); };
