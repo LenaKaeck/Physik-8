@@ -36,16 +36,9 @@
 
   /* Raum */
   #scene{display:block;width:100%;height:auto;border-radius:16px;border:1px solid var(--line);background:#2a3b5c;}
-  .obj{cursor:pointer;outline:none;}
-  .obj .hl{fill:none;stroke:var(--yellow);stroke-width:3;stroke-dasharray:7 6;opacity:0;transition:opacity .15s;}
-  .obj:hover .hl,.obj:focus-visible .hl{opacity:1;}
-  .obj .body{transition:transform .15s;transform-box:fill-box;transform-origin:center;}
-  .obj:hover .body{transform:scale(1.03);}
-  .lbl{font:600 17px 'Space Grotesk',sans-serif;fill:#fff;text-anchor:middle;paint-order:stroke;stroke:#000;stroke-width:4px;stroke-opacity:.55;pointer-events:none;}
+  .obj{cursor:default;outline:none;}
   .badge{display:none;}
   .obj.solved .badge{display:inline;}
-  .flash{animation:flash 2.2s infinite;}
-  @keyframes flash{0%,86%,100%{opacity:0}88%,92%{opacity:1}90%{opacity:.2}}
   .note{color:var(--dim);font-size:.9rem;margin:12px 0 0;}
 
   .overlay{position:fixed;inset:0;background:rgba(5,9,18,.75);display:grid;place-items:center;padding:14px;z-index:10;}
@@ -74,11 +67,11 @@
 
   <section id="start" class="panel">
     <h1>Das Labor von Dr. Coulomb</h1>
-    <p>Ihr habt euch im Labor eingeschlossen! Draußen tobt ein Gewitter, und ein Blitz ist in die Türsteuerung gefahren.
-       Die Tür öffnet sich nur mit einem <b>Codewort aus fünf Buchstaben</b>.</p>
+    <p>Ihr habt euch im Labor eingeschlossen! Die Tür hat ein Codeschloss, aber der Code ist verschwunden.
+       Sucht im Raum nach Gegenständen, die mit <b>elektrischer Ladung</b> zu tun haben. Nicht alles lässt sich anklicken.</p>
     <ul>
-      <li>Untersucht <b>5 Gegenstände im Raum</b>. Jeder verrät einen Buchstaben.</li>
-      <li>Ihr habt <b>10 Minuten</b>. Ein Tipp kostet <b>1 Minute</b>.</li>
+      <li>Findet <b>4 Gegenstände</b>, die ein Rätsel verstecken. Jedes verrät einen Buchstaben.</li>
+      <li>Ihr habt <b>5 Minuten</b>. Ein Tipp kostet <b>30 Sekunden</b>.</li>
       <li>Die Buchstaben stehen durcheinander. Das Rätsel an der Tür hilft euch.</li>
     </ul>
     <button class="btn" id="go">Raum betreten</button>
@@ -105,35 +98,71 @@
       </g>
       <rect x="0" y="0" width="1000" height="40" fill="#1a2640" opacity=".5"/>
 
-      <!-- Fenster mit Gewitter -->
-      <g class="obj" data-id="fenster" tabindex="0" role="button" aria-label="Fenster">
+      <!-- Fenster (nur Deko) -->
+        <g aria-hidden="true">
         <g class="body">
           <rect x="50" y="50" width="240" height="190" rx="6" fill="#d9d3c2"/>
           <rect x="62" y="62" width="216" height="166" fill="url(#sky)"/>
           <ellipse cx="120" cy="100" rx="60" ry="26" fill="#3b4663"/><ellipse cx="190" cy="92" rx="70" ry="30" fill="#2f3a56"/>
           <ellipse cx="240" cy="112" rx="40" ry="20" fill="#3b4663"/>
-          <polygon class="flash" points="178,118 158,162 176,162 160,214 206,148 186,148 200,118" fill="#ffe66d"/>
           <rect x="166" y="62" width="8" height="166" fill="#d9d3c2"/><rect x="62" y="141" width="216" height="8" fill="#d9d3c2"/>
           <rect x="40" y="240" width="260" height="12" rx="3" fill="#bdb7a6"/>
         </g>
-        <rect class="hl" x="36" y="40" width="268" height="218" rx="10"/>
-        <text class="lbl" x="170" y="280">Fenster</text>
-        <g class="badge"><circle cx="286" cy="52" r="16" fill="#2b8a3e"/><text x="286" y="59" text-anchor="middle" font-size="20" fill="#fff">✔</text></g>
+      </g>
+
+      <!-- Dekoration, nicht anklickbar -->
+      <g aria-hidden="true">
+        <!-- Uhr -->
+        <circle cx="345" cy="110" r="28" fill="#ece6d2" stroke="#6b4a2b" stroke-width="5"/>
+        <g stroke="#33415c" stroke-width="3" stroke-linecap="round"><line x1="345" y1="110" x2="345" y2="92"/><line x1="345" y1="110" x2="358" y2="116"/></g>
+        <g transform="translate(-30 0)"><!-- Regal mit Büchern -->
+        <rect x="625" y="70" width="150" height="190" rx="4" fill="#6b4a2b"/>
+        <rect x="635" y="80" width="130" height="80" fill="#4b3320"/><rect x="635" y="170" width="130" height="80" fill="#4b3320"/>
+        <g>
+          <rect x="640" y="102" width="14" height="58" fill="#c94a4a"/><rect x="656" y="94" width="14" height="66" fill="#4a86c5"/><rect x="672" y="108" width="14" height="52" fill="#e8c25b"/>
+          <rect x="688" y="98" width="14" height="62" fill="#7fb87f"/><rect x="704" y="106" width="14" height="54" fill="#b17ac9"/><rect x="722" y="100" width="22" height="60" fill="#d9a066"/>
+          <rect x="642" y="196" width="40" height="54" fill="#6fa3a8"/><rect x="690" y="190" width="14" height="60" fill="#c94a4a"/><rect x="708" y="200" width="14" height="50" fill="#e8c25b"/>
+          <ellipse cx="745" cy="238" rx="12" ry="12" fill="#d9d3c2"/>
+        </g>
+        </g>
+        <!-- Pflanze -->
+        <path d="M708 366 h44 l-6 38 h-32 z" fill="#b5654a"/>
+        <ellipse cx="722" cy="340" rx="12" ry="26" fill="#4c9a5a" transform="rotate(-24 722 340)"/>
+        <ellipse cx="738" cy="334" rx="12" ry="28" fill="#3f8a4d" transform="rotate(20 738 334)"/>
+        <ellipse cx="730" cy="332" rx="10" ry="28" fill="#5aae68"/>
+        <!-- Kisten -->
+        <rect x="330" y="446" width="96" height="62" rx="3" fill="#a9855a" stroke="#6b4a2b" stroke-width="3"/>
+        <rect x="346" y="418" width="64" height="30" rx="3" fill="#b8946a" stroke="#6b4a2b" stroke-width="3"/>
+        <line x1="330" y1="477" x2="426" y2="477" stroke="#6b4a2b" stroke-width="3"/>
+        <!-- Mülleimer -->
+        <path d="M550 440 h40 l-5 52 h-30 z" fill="#707b8c"/><rect x="546" y="434" width="48" height="8" rx="3" fill="#8a95a6"/>
       </g>
 
       <!-- Poster Atom -->
       <g class="obj" data-id="atom" tabindex="0" role="button" aria-label="Poster">
         <g class="body">
           <rect x="400" y="56" width="190" height="180" rx="4" fill="#ece6d2" stroke="#b9b29a" stroke-width="2"/>
-          <text x="495" y="82" text-anchor="middle" font-family="Kalam" font-size="19" font-weight="700" fill="#33415c">Natrium</text>
-          <ellipse cx="495" cy="158" rx="68" ry="62" fill="none" stroke="#7a8aa8" stroke-dasharray="4 4"/>
-          <circle cx="495" cy="158" r="22" fill="#e07a5f"/><circle cx="486" cy="150" r="5" fill="#fff" opacity=".6"/><circle cx="504" cy="166" r="5" fill="#fff" opacity=".6"/>
-          <circle cx="495" cy="96" r="7" fill="#4a86c5"/><circle cx="433" cy="170" r="7" fill="#4a86c5"/><circle cx="557" cy="170" r="7" fill="#4a86c5"/><circle cx="470" cy="214" r="7" fill="#4a86c5"/><circle cx="525" cy="214" r="7" fill="#4a86c5"/>
-          <text x="495" y="226" text-anchor="middle" font-size="12" fill="#33415c">11 p⁺ · 11 e⁻</text>
+          <text x="495" y="80" text-anchor="middle" font-family="Kalam" font-size="19" font-weight="700" fill="#33415c">Lithium</text>
+          <circle cx="495" cy="152" r="32" fill="none" stroke="#7a8aa8" stroke-width="1.5"/>
+          <circle cx="495" cy="152" r="60" fill="none" stroke="#7a8aa8" stroke-width="1.5"/>
+          <g fill="#9aa3b2" stroke="#6b7280" stroke-width=".8">
+            <circle cx="495" cy="152" r="6.5"/><circle cx="501.3" cy="162.8" r="6.5"/><circle cx="482.5" cy="152" r="6.5"/><circle cx="501.3" cy="141.2" r="6.5"/>
+          </g>
+          <g fill="#e07a5f" stroke="#a8432c" stroke-width=".8">
+            <circle cx="507.5" cy="152" r="6.5"/><circle cx="488.8" cy="162.8" r="6.5"/><circle cx="488.8" cy="141.2" r="6.5"/>
+          </g>
+          <g fill="#fff" font-size="10" font-weight="700" text-anchor="middle">
+            <text x="507.5" y="155.5">+</text><text x="488.8" y="166.3">+</text><text x="488.8" y="144.7">+</text>
+          </g>
+          <g fill="#4a86c5" stroke="#2a5a8f" stroke-width=".8">
+            <circle cx="522.7" cy="168" r="6"/><circle cx="467.3" cy="136" r="6"/><circle cx="526.9" cy="100" r="6"/>
+          </g>
+          <g fill="#fff" font-size="11" font-weight="700" text-anchor="middle">
+            <text x="522.7" y="171.5">−</text><text x="467.3" y="139.5">−</text><text x="526.9" y="103.5">−</text>
+          </g>
+          <text x="495" y="228" text-anchor="middle" font-size="11" fill="#33415c">3 p⁺, 4 n, 3 e⁻</text>
           <circle cx="495" cy="52" r="5" fill="#c94a4a"/>
         </g>
-        <rect class="hl" x="390" y="46" width="210" height="200" rx="8"/>
-        <text class="lbl" x="495" y="268">Poster</text>
         <g class="badge"><circle cx="590" cy="58" r="16" fill="#2b8a3e"/><text x="590" y="65" text-anchor="middle" font-size="20" fill="#fff">✔</text></g>
       </g>
 
@@ -146,8 +175,6 @@
           <rect x="764" y="190" width="30" height="62" rx="4" fill="#1b2233" stroke="#555" stroke-width="2"/>
           <g fill="#c94a4a"><circle cx="779" cy="203" r="3.5"/><circle cx="779" cy="214" r="3.5"/><circle cx="779" cy="225" r="3.5"/><circle cx="779" cy="236" r="3.5"/><circle cx="779" cy="247" r="0"/></g>
         </g>
-        <rect class="hl" x="754" y="60" width="216" height="350" rx="10"/>
-        <text class="lbl" x="880" y="436">Tür mit Codeschloss</text>
       </g>
 
       <!-- Tisch -->
@@ -162,8 +189,6 @@
           <path d="M540 258 h36 v12 h-24 v12 h-12 z" fill="#aeb8c8"/>
           <path d="M546 282 Q548 298 524 314" fill="none" stroke="#6ec3ff" stroke-width="4" stroke-linecap="round"/>
         </g>
-        <rect class="hl" x="338" y="248" width="244" height="74" rx="10"/>
-        <text class="lbl" x="456" y="358">Lineal &amp; Wasserhahn</text>
         <g class="badge"><circle cx="352" cy="272" r="16" fill="#2b8a3e"/><text x="352" y="279" text-anchor="middle" font-size="20" fill="#fff">✔</text></g>
       </g>
 
@@ -175,8 +200,6 @@
           <circle cx="629" cy="238" r="15" fill="#d9b04a"/>
           <line x1="629" y1="294" x2="650" y2="270" stroke="#e8e8e8" stroke-width="3" stroke-linecap="round"/>
         </g>
-        <rect class="hl" x="586" y="214" width="86" height="108" rx="10"/>
-        <text class="lbl" x="629" y="358">Elektroskop</text>
         <g class="badge"><circle cx="668" cy="226" r="16" fill="#2b8a3e"/><text x="668" y="233" text-anchor="middle" font-size="20" fill="#fff">✔</text></g>
       </g>
 
@@ -189,12 +212,10 @@
           <path d="M150 412 l-30 -8 l-8 22 l24 4 z" fill="#d1705a"/>
           <polygon points="262,408 252,426 262,426 254,444 272,420 262,420 270,408" fill="#ffe66d"/>
         </g>
-        <rect class="hl" x="98" y="390" width="190" height="126" rx="10"/>
-        <text class="lbl" x="185" y="534">Wäschekorb</text>
         <g class="badge"><circle cx="262" cy="392" r="16" fill="#2b8a3e"/><text x="262" y="399" text-anchor="middle" font-size="20" fill="#fff">✔</text></g>
       </g>
     </svg>
-    <p class="note">Klickt auf die Gegenstände im Raum, besprecht euch in der Gruppe und gebt eure Antwort ein.</p>
+    <p class="note">Sucht im Raum nach Gegenständen, die mit elektrischer Ladung zu tun haben. Nicht alles lässt sich anklicken.</p>
   </section>
 
   <section id="end" class="panel hidden"></section>
@@ -204,78 +225,59 @@
 
 <script>
 "use strict";
-const TOTAL = 10*60;
-const CODE = "BLITZ";
-const OPT = (a,b,c) => [a,b,c].filter(Boolean);
+const TOTAL = 5*60;
+const HINT_COST = 30;      // Sekunden Abzug pro Tipp
+const CODE = "ATOM";
 
 // rows: {pre, opts, ans (Index der richtigen Option), post}. Optionen werden gemischt angezeigt.
+// Die Reihenfolge hier bestimmt die Reihenfolge der Buchstaben in der Anzeige (durcheinander: O M T A).
 const STATIONS = [
   {
-    id:"fenster", ico:"⛈️", letter:"Z",
-    title:"Gewitter am Fenster",
-    story:"Draußen zieht ein Gewitter auf. Was wisst ihr darüber?",
-    type:"rows",
-    rows:[
-      {pre:"In der Gewitterwolke reiben Eis- und Graupelteilchen aneinander. Dabei werden Ladungen ", opts:["getrennt","erzeugt","vernichtet"], ans:0, post:"."},
-      {pre:"Die Wolke ist deshalb oben und unten ", opts:["unterschiedlich geladen","gleich geladen","gar nicht geladen"], ans:0, post:"."},
-      {pre:"Ein Blitz ist ein plötzlicher ", opts:["Ausgleich der getrennten Ladungen","Zerfall von Atomkernen","Magnetfeld-Wechsel"], ans:0, post:"."},
-      {pre:"Ein Blitzableiter schützt ein Haus, weil er die Ladung ", opts:["gefahrlos zur Erde ableitet","im Haus speichert","in die Wolke zurückschickt"], ans:0, post:"."},
-      {pre:"Bei einem Gewitter ist man am sichersten ", opts:["in einem Gebäude oder Auto","unter einem einzelnen hohen Baum","auf einem freien Feld"], ans:0, post:"."},
-    ],
-    hint:"Gewitterwolken laden sich durch Reibung auf. Ein Blitz gleicht diese Ladungen wieder aus, am liebsten über hohe, spitze Gegenstände."
-  },
-  {
-    id:"pullover", ico:"🧺", letter:"I",
+    id:"pullover", ico:"🧺", letter:"O",
     title:"Knistern im Wäschekorb",
-    story:"Ihr zieht einen Pulli aus dem Korb: Es knistert, und ihr seht kleine Funken.",
+    story:"Ihr zieht einen Pulli aus dem Korb: Es knistert, und die Haare stehen ab.",
     type:"rows",
     rows:[
       {pre:"Beim Ausziehen reiben Pulli und Hemd aneinander. Dabei ", opts:["werden Ladungen getrennt","entsteht neue Ladung","werden Atome geteilt"], ans:0, post:"."},
-      {pre:"Die Funken entstehen, wenn sich die getrennten Ladungen ", opts:["ausgleichen","verdoppeln","in den Kern einbauen"], ans:0, post:"."},
       {pre:"Danach kleben Pulli und Hemd aneinander, weil sie ", opts:["ungleichnamig geladen sind","gleichnamig geladen sind","ungeladen sind"], ans:0, post:"."},
-      {pre:"Beim Ausziehen stehen die Haare ab, weil sie ", opts:["gleichnamig geladen sind und sich abstoßen","ungleichnamig geladen sind und sich anziehen","nicht geladen sind"], ans:0, post:"."},
+      {pre:"Die Haare stehen ab, weil sie ", opts:["gleichnamig geladen sind und sich abstoßen","ungleichnamig geladen sind und sich anziehen","nicht geladen sind"], ans:0, post:"."},
     ],
-    hint:"Beim Reiben geht Ladung von einem Stoff auf den anderen über. Gleichnamige Ladungen stoßen sich ab, ungleichnamige ziehen sich an. Funken sind kleine Ausgleichsvorgänge, wie ein Mini-Blitz."
+    hint:"Beim Reiben geht Ladung von einem Stoff auf den anderen über. Gleichnamige Ladungen stoßen sich ab, ungleichnamige ziehen sich an."
   },
   {
-    id:"lineal", ico:"📏", letter:"B",
+    id:"lineal", ico:"📏", letter:"M",
     title:"Lineal und Wasserstrahl",
     story:"Ein dünner Wasserstrahl läuft aus dem Hahn. Hält man ein geriebenes Kunststofflineal daneben, biegt er sich zum Lineal! Bringt die Erklärung in die richtige Reihenfolge.",
     type:"order",
     steps:[
-      "Das Kunststofflineal wird kräftig an einem Wolltuch gerieben.",
-      "Elektronen gehen vom Tuch auf das Lineal über: Das Lineal ist negativ geladen.",
+      "Das Lineal wird am Wolltuch gerieben und ist danach negativ geladen.",
       "Das Lineal wird nah an den ungeladenen Wasserstrahl gehalten.",
-      "Die Elektronen im Wasser werden vom Lineal weggedrückt.",
-      "Die dem Lineal zugewandte Seite wird positiv: Der Strahl biegt sich zum Lineal.",
+      "Die Elektronen im Wasser werden weggedrückt, die zugewandte Seite wird positiv.",
+      "Der Strahl wird vom Lineal angezogen und biegt sich zu ihm hin.",
     ],
     hint:"Erst wird das Lineal geladen. Dann kommt es ans Wasser. Erst danach verschieben sich die Ladungen im Wasser und die Anziehung entsteht."
   },
   {
     id:"atom", ico:"⚛️", letter:"T",
-    title:"Poster: Natrium-Atom",
-    story:"Auf dem Poster steht: Ein Natrium-Atom hat 11 Protonen und 11 Elektronen.",
+    title:"Poster: Lithium-Atom",
+    story:"Auf dem Poster ist ein Lithium-Atom gezeichnet: 3 Protonen, 4 Neutronen und 3 Elektronen.",
     type:"rows",
     rows:[
-      {pre:"Das Natrium-Atom ist nach außen ", opts:["ungeladen","positiv","negativ"], ans:0, post:", weil es gleich viele Protonen und Elektronen hat."},
-      {pre:"Gibt es ein Elektron ab, hat es danach ", opts:["10","11","12"], ans:0, post:" Elektronen."},
-      {pre:"Es hat jetzt ein Elektron ", opts:["zu wenig","zu viel"], ans:0, post:" im Vergleich zu den Protonen."},
-      {pre:"Das Teilchen ist jetzt ein ", opts:["positiv geladenes Teilchen","negativ geladenes Teilchen","ungeladenes Teilchen"], ans:0, post:"."},
-      {pre:"Ein Atom, das ein Elektron aufnimmt, wird zu einem ", opts:["negativ geladenen Teilchen","positiv geladenen Teilchen","ungeladenen Teilchen"], ans:0, post:"."},
+      {pre:"Das Lithium-Atom ist nach außen ", opts:["ungeladen","positiv","negativ"], ans:0, post:", weil es gleich viele Protonen und Elektronen hat."},
+      {pre:"Gibt es ein Elektron ab, ist es danach ein ", opts:["positiv geladenes Teilchen","negativ geladenes Teilchen","ungeladenes Teilchen"], ans:0, post:"."},
+      {pre:"Nimmt ein Atom ein Elektron auf, wird es zu einem ", opts:["negativ geladenen Teilchen","positiv geladenen Teilchen","ungeladenen Teilchen"], ans:0, post:"."},
     ],
-    hint:"Zählt nach: Protonen sind positiv, Elektronen negativ. Fehlt ein Elektron, überwiegt das Positive."
+    hint:"Protonen sind positiv, Elektronen negativ. Fehlt ein Elektron, überwiegt das Positive."
   },
   {
-    id:"elektro", ico:"🔬", letter:"L",
+    id:"elektro", ico:"🔬", letter:"A",
     title:"Das Elektroskop",
     story:"Auf dem Tisch steht ein Elektroskop. Ein geladener Stab wird an den Teller gehalten.",
     type:"rows",
     rows:[
       {pre:"Der Zeiger schlägt aus, weil Stab und Zeiger ", opts:["gleichnamig geladen sind und sich abstoßen","ungleichnamig geladen sind und sich anziehen","ungeladen sind"], ans:0, post:"."},
       {pre:"Ein größerer Ausschlag bedeutet ", opts:["mehr Ladung","weniger Ladung","eine andere Ladungsart"], ans:0, post:"."},
-      {pre:"Berührt man den Teller mit der Hand, ", opts:["fließt die Ladung ab und der Ausschlag geht zurück","wird der Ausschlag größer","ändert sich nichts"], ans:0, post:"."},
       {pre:"Ob die Ladung positiv oder negativ ist, ", opts:["erkennt man am Elektroskop allein nicht","sieht man an der Zeigerfarbe","sieht man an der Richtung des Ausschlags"], ans:0, post:"."},
-      {pre:"Die Einheit der Ladung (Formelzeichen Q) ist 1 C. Ein Blitz mit etwa 10 C hat ", opts:["viel mehr Ladung als ein geriebener Ballon","viel weniger Ladung als ein Ballon","genau so viel Ladung wie ein Ballon"], ans:0, post:"."},
     ],
     hint:"Das Elektroskop misst nur die Menge der Ladung. Beide Teile laden sich mit derselben Ladungsart auf."
   }
@@ -289,7 +291,7 @@ const fmt = s => { s=Math.max(0,s); return String(Math.floor(s/60)).padStart(2,"
 
 function renderHud(){
   $("timer").textContent = fmt(remaining);
-  $("timer").classList.toggle("low", remaining <= 120);
+  $("timer").classList.toggle("low", remaining <= 60);
   $("letters").innerHTML = STATIONS.map(s => `<div class="slot ${solved[s.id]?"on":""}">${solved[s.id]?s.letter:"?"}</div>`).join("");
 }
 function renderRoom(){
@@ -311,10 +313,10 @@ function startTimer(){
 function timeUp(){
   $("overlay").classList.remove("hidden");
   $("modal").innerHTML = `<h2>⏰ Die Zeit ist um!</h2>
-    <p class="story">Die 10 Minuten sind vorbei. Ihr habt ${Object.keys(solved).length} von 5 Gegenständen untersucht.</p>
-    <div class="actions"><button class="btn" id="more">Noch 2 Minuten spielen</button>
+    <p class="story">Die 5 Minuten sind vorbei. Ihr habt ${Object.keys(solved).length} von 4 Gegenständen untersucht.</p>
+    <div class="actions"><button class="btn" id="more">Noch 1 Minute spielen</button>
     <button class="btn ghost" id="fin">Auflösung besprechen</button></div>`;
-  $("more").onclick = () => { remaining = 120; closeModal(); renderHud(); startTimer(); };
+  $("more").onclick = () => { remaining = 60; closeModal(); renderHud(); startTimer(); };
   $("fin").onclick = () => { closeModal(); showEnd(false); };
 }
 
@@ -335,14 +337,14 @@ function openStation(id){
   $("modal").innerHTML = `<h2>${s.ico} ${s.title}</h2><p class="story">${s.story}</p>${body}
     <div class="actions">
       <button class="btn" id="check">Antwort prüfen</button>
-      <button class="btn ghost" id="hint">Tipp (−1 Min.)</button>
+      <button class="btn ghost" id="hint">Tipp (−30 s)</button>
       <button class="btn ghost" id="close">Zurück</button>
     </div>
     <div class="msg" id="msg"></div><div id="hintbox"></div>`;
   $("close").onclick = closeModal;
   $("hint").onclick = () => {
     if ($("hintbox").innerHTML) return;
-    hintsUsed++; remaining = Math.max(1, remaining-60); renderHud();
+    hintsUsed++; remaining = Math.max(1, remaining-HINT_COST); renderHud();
     $("hintbox").innerHTML = `<div class="hint">💡 ${s.hint}</div>`;
   };
   $("check").onclick = () => (s.type==="order" ? checkOrder(s) : checkRows(s));
@@ -399,14 +401,14 @@ function openDoor(){
   const all = STATIONS.every(s => solved[s.id]);
   $("overlay").classList.remove("hidden");
   if (!all){
-    $("modal").innerHTML = `<h2>🚪 Verschlossen</h2><p class="story">Am Schloss stehen fünf leere Felder. Ihr braucht zuerst alle Buchstaben aus dem Raum.</p>
+    $("modal").innerHTML = `<h2>🚪 Verschlossen</h2><p class="story">Am Schloss stehen vier leere Felder. Ihr braucht zuerst alle Buchstaben aus dem Raum.</p>
       <div class="actions"><button class="btn" id="close">Zurück</button></div>`;
     $("close").onclick = closeModal; return;
   }
   $("modal").innerHTML = `<h2>🚪 Das Codeschloss</h2>
     <p class="story">Eure Buchstaben: <b class="big">${STATIONS.map(s=>s.letter).join(" ")}</b></p>
-    <p class="story">Rätsel am Schloss: <i>Wenn sich in einer Gewitterwolke große Ladungen ausgleichen, sieht man einen …</i><br>Ordnet die Buchstaben zum Codewort.</p>
-    <div style="text-align:center"><input type="text" id="code" maxlength="5" autocomplete="off"></div>
+    <p class="story">Rätsel am Schloss: <i>Das kleinste Teilchen eines Elements. Es besteht aus Kern und Hülle.</i><br>Ordnet die Buchstaben zum Codewort.</p>
+    <div style="text-align:center"><input type="text" id="code" maxlength="4" autocomplete="off"></div>
     <div class="actions" style="justify-content:center"><button class="btn" id="try">Tür öffnen</button>
     <button class="btn ghost" id="close">Zurück</button></div><div class="msg" id="msg"></div>`;
   $("close").onclick = closeModal;
@@ -425,14 +427,14 @@ function showEnd(win){
   const el = $("end"); el.classList.remove("hidden");
   el.innerHTML = win
    ? `<h1>🎉 Die Tür ist offen!</h1>
-      <p>Geschafft mit dem Codewort <b class="big">BLITZ</b>. Verbleibende Zeit: <b>${fmt(remaining)}</b>, Tipps: <b>${hintsUsed}</b>.</p>
+      <p>Geschafft mit dem Codewort <b class="big">ATOM</b>. Verbleibende Zeit: <b>${fmt(remaining)}</b>, Tipps: <b>${hintsUsed}</b>.</p>
       <p><b>Das haben wir wiederholt:</b></p>
       <ul><li>Zwei Ladungsarten: Gleichnamige stoßen sich ab, ungleichnamige ziehen sich an.</li>
-      <li>Reiben trennt Ladung (Elektronen gehen über). Ein Blitz oder Funke gleicht sie wieder aus.</li>
+      <li>Reiben trennt Ladung: Elektronen gehen von einem Körper auf den anderen über.</li>
       <li>Influenz: Ein geladener Körper verschiebt die Ladungen in einem anderen Körper.</li>
       <li>Atome: Elektronen-Überschuss ist negativ, Elektronen-Mangel positiv.</li>
-      <li>Das Elektroskop zeigt die Menge der Ladung (Q in C), nicht die Ladungsart.</li></ul>`
-   : `<h1>Zeit abgelaufen</h1><p>Untersucht: ${Object.keys(solved).length} von 5 Gegenständen. Das Codewort lautet <b class="big">BLITZ</b>. Besprecht gemeinsam, was schwierig war.</p>`;
+      <li>Das Elektroskop zeigt die Menge der Ladung, nicht die Ladungsart.</li></ul>`
+   : `<h1>Zeit abgelaufen</h1><p>Untersucht: ${Object.keys(solved).length} von 4 Gegenständen. Das Codewort lautet <b class="big">ATOM</b>. Besprecht gemeinsam, was schwierig war.</p>`;
   el.innerHTML += `<div class="actions"><button class="btn" onclick="location.reload()">Nochmal spielen</button>
     <a class="btn ghost" style="text-decoration:none" href="index.html">Zur Themenübersicht</a></div>`;
 }
