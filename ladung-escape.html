@@ -71,7 +71,7 @@
        Sucht im Raum nach Gegenständen, die mit <b>elektrischer Ladung</b> zu tun haben. Nicht alles lässt sich anklicken.</p>
     <ul>
       <li>Findet <b>4 Gegenstände</b>, die ein Rätsel verstecken. Jedes verrät einen Buchstaben.</li>
-      <li>Ihr habt <b>10 Minuten</b>. Ein Tipp kostet <b>30 Sekunden</b>.</li>
+      <li>Ihr habt <b>8 Minuten</b>. Ein Tipp kostet <b>30 Sekunden</b>.</li>
       <li>Die Buchstaben stehen durcheinander. Das Rätsel an der Tür hilft euch.</li>
     </ul>
     <button class="btn" id="go">Raum betreten</button>
@@ -79,7 +79,7 @@
 
   <section id="game" class="hidden">
     <div class="hud">
-      <div class="timer" id="timer">10:00</div>
+      <div class="timer" id="timer">08:00</div>
       <div class="letters" id="letters"></div>
     </div>
 
@@ -225,7 +225,7 @@
 
 <script>
 "use strict";
-const TOTAL = 10*60;
+const TOTAL = 8*60;
 const HINT_COST = 30;      // Sekunden Abzug pro Tipp
 const CODE = "ATOM";
 
@@ -313,7 +313,7 @@ function startTimer(){
 function timeUp(){
   $("overlay").classList.remove("hidden");
   $("modal").innerHTML = `<h2>⏰ Die Zeit ist um!</h2>
-    <p class="story">Die 10 Minuten sind vorbei. Ihr habt ${Object.keys(solved).length} von 4 Gegenständen untersucht.</p>
+    <p class="story">Die 8 Minuten sind vorbei. Ihr habt ${Object.keys(solved).length} von 4 Gegenständen untersucht.</p>
     <div class="actions"><button class="btn" id="more">Noch 1 Minute spielen</button>
     <button class="btn ghost" id="fin">Auflösung besprechen</button></div>`;
   $("more").onclick = () => { remaining = 60; closeModal(); renderHud(); startTimer(); };
