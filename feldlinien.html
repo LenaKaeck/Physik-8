@@ -52,11 +52,6 @@
   .dot.p{background:var(--red);} .dot.n{background:var(--blue);}
 
   /* Werkzeugwahl */
-  .tool[aria-pressed="true"]{background:var(--yellow);box-shadow:0 3px 0 rgba(0,0,0,.28),0 0 0 3px rgba(232,194,91,.35);}
-  .swatches{display:flex;gap:6px;align-items:center;padding:0 4px;}
-  .sw-btn{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.55);cursor:pointer;touch-action:manipulation;padding:0;}
-  .sw-btn[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 3px var(--yellow);}
-  .sw-btn:focus-visible{outline:3px solid var(--yellow);outline-offset:2px;}
 
   /* Schalter */
   .toggle{background:transparent;color:var(--chalk);box-shadow:none;border:1.5px solid rgba(243,239,227,.35);padding:0 14px 0 8px;justify-content:flex-start;}
@@ -96,7 +91,7 @@
     <h1>Feldlinien erforschen <span>–</span> Wie verläuft das elektrische Feld?</h1>
     <details class="help">
       <summary>Anleitung</summary>
-      <p>Zieht Ladungen auf die Fläche. Erforscht mit der Probeladung, in welche Richtung die Kraft zeigt. Zeichnet dann mit dem Stift die Feldlinien ein.</p>
+      <p>Zieht Ladungen auf die Fläche und beobachtet, wie die Feldlinien verlaufen. Mit der Probeladung seht ihr, in welche Richtung die Kraft zeigt.</p>
     </details>
   </header>
 
@@ -113,21 +108,8 @@
     </div>
     <div class="group">
       <button class="btn toggle" type="button" id="tProbe" aria-pressed="false"><span class="sw"></span>Probeladung</button>
-      <button class="btn accent" type="button" id="stamp" hidden>Pfeil festhalten</button>
     </div>
     <div class="group">
-      <button class="btn tool" type="button" data-tool="move" aria-pressed="true">✋ Verschieben</button>
-      <button class="btn tool" type="button" data-tool="pen" aria-pressed="false">✏️ Stift</button>
-      <div class="swatches" role="group" aria-label="Stiftfarbe">
-        <button class="sw-btn" type="button" data-color="#1c1c1c" style="background:#1c1c1c" aria-label="Schwarz" aria-pressed="true"></button>
-        <button class="sw-btn" type="button" data-color="#e8590c" style="background:#e8590c" aria-label="Orange" aria-pressed="false"></button>
-        <button class="sw-btn" type="button" data-color="#2b8a3e" style="background:#2b8a3e" aria-label="Grün" aria-pressed="false"></button>
-      </div>
-      <button class="btn tool" type="button" data-tool="erase" aria-pressed="false">🧽 Radierer</button>
-      <button class="btn" type="button" id="undo">↶ Zurück</button>
-    </div>
-    <div class="group">
-      <button class="btn" type="button" id="clearDraw">Zeichnung löschen</button>
       <button class="btn" type="button" id="clear">Alles löschen</button>
     </div>
   </div>
@@ -147,7 +129,6 @@
 var R = 20;            // Radius der gezeichneten Ladung (px)
 var PROBE_R = 11;      // Radius der Probeladung
 var PLATE_N = 15;
-var ERASE_R = 16;
 
 /* ---------- Zustand ---------- */
 var canvas = document.getElementById("c");
@@ -162,12 +143,8 @@ var nextId = 1;
 var platesOn = false, plateCharges = [], plateRects = [];
 var allC = [];
 var probe = {on:false, x:0, y:0, drag:false};
-var strokes = [];                 // {color, pts:[[x,y],...]}
-var stamps = [];                  // {x,y,a}
-var undoStack = [];                 // {t:"s"|"a", o}
-var tool = "move", penColor = "#1c1c1c";
 var showLines = true, lines = [], linesDirty = true;   // Feldlinien sind immer sichtbar
-var drag = null, lastTap = null, drawing = null, erasing = null, scheduled = false;
+var drag = null, lastTap = null, scheduled = false;
 
 /* ---------- Hilfsfunktionen ---------- */
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
@@ -287,7 +264,7 @@ function computeLines(){
   }
 }
 
-/* ---------- Zeichnen ---------- */
+/* ---------- Darstellung ---------- */
 function arrow(x, y, ang, len, color, lw){
   var tx = x + Math.cos(ang) * len, ty = y + Math.sin(ang) * len;
   ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw; ctx.lineCap = "round";
@@ -313,23 +290,6 @@ function drawLines(){
     }
   }
   ctx.globalAlpha = 1;
-}
-
-function drawStrokes(){
-  ctx.lineWidth = 3.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
-  for(var s = 0; s < strokes.length; s++){
-    var st = strokes[s], p = st.pts;
-    ctx.strokeStyle = st.color; ctx.fillStyle = st.color;
-    if(p.length === 1){
-      ctx.beginPath(); ctx.arc(p[0][0], p[0][1], 1.9, 0, 2 * Math.PI); ctx.fill(); continue;
-    }
-    ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]);
-    for(var i = 1; i < p.length - 1; i++){
-      ctx.quadraticCurveTo(p[i][0], p[i][1], (p[i][0] + p[i + 1][0]) / 2, (p[i][1] + p[i + 1][1]) / 2);
-    }
-    ctx.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
-    ctx.stroke();
-  }
 }
 
 function drawCharge(c){
@@ -364,12 +324,6 @@ function draw(){
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
   if(showLines) drawLines();
-  drawStrokes();
-  for(var i = 0; i < stamps.length; i++){
-    var s = stamps[i];
-    arrow(s.x, s.y, s.a, 44, "#0b7285", 3.5);
-    ctx.fillStyle = "#0b7285"; ctx.beginPath(); ctx.arc(s.x, s.y, 4, 0, 2 * Math.PI); ctx.fill();
-  }
   for(var p = 0; p < plateRects.length; p++){
     var rc = plateRects[p];
     ctx.fillStyle = rc.q > 0 ? "#d62828" : "#1d4ed8";
@@ -377,12 +331,8 @@ function draw(){
     if(ctx.roundRect) ctx.roundRect(rc.x, rc.y, rc.w, rc.h, 6); else ctx.rect(rc.x, rc.y, rc.w, rc.h);
     ctx.fill();
   }
-  for(i = 0; i < charges.length; i++) drawCharge(charges[i]);
+  for(var i = 0; i < charges.length; i++) drawCharge(charges[i]);
   if(probe.on) drawProbe();
-  if(erasing && erasing.x !== undefined){
-    ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
-    ctx.beginPath(); ctx.arc(erasing.x, erasing.y, ERASE_R, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
-  }
 }
 
 /* ---------- Größe ---------- */
@@ -393,8 +343,6 @@ function resize(){
   if(W > 0){
     var sx = nw / W, sy = nh / H, i;
     for(i = 0; i < charges.length; i++){ charges[i].x *= sx; charges[i].y *= sy; }
-    for(i = 0; i < strokes.length; i++) strokes[i].pts.forEach(function(p){ p[0] *= sx; p[1] *= sy; });
-    for(i = 0; i < stamps.length; i++){ stamps[i].x *= sx; stamps[i].y *= sy; }
     probe.x *= sx; probe.y *= sy;
   } else { probe.x = nw * 0.5; probe.y = nh * 0.3; }
   W = nw; H = nh; dpr = window.devicePixelRatio || 1;
@@ -432,32 +380,11 @@ function hitProbe(x, y){
 function placeCharge(c, x, y){
   c.x = clamp(x, R, W - R); c.y = clamp(y, R, H - R); touch();
 }
-function distSeg(px, py, ax, ay, bx, by){
-  var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
-  var t = l2 ? clamp(((px - ax) * dx + (py - ay) * dy) / l2, 0, 1) : 0;
-  var qx = ax + t * dx - px, qy = ay + t * dy - py;
-  return Math.sqrt(qx * qx + qy * qy);
-}
-
-/* ---------- Zeichenfläche: Verschieben, Stift, Radierer ---------- */
-function eraseAt(x, y){
-  var changed = false, i, j;
-  for(i = strokes.length - 1; i >= 0; i--){
-    var p = strokes[i].pts, hit = false;
-    if(p.length === 1) hit = Math.hypot(p[0][0] - x, p[0][1] - y) <= ERASE_R;
-    for(j = 1; j < p.length && !hit; j++) hit = distSeg(x, y, p[j - 1][0], p[j - 1][1], p[j][0], p[j][1]) <= ERASE_R;
-    if(hit){ strokes.splice(i, 1); changed = true; }
-  }
-  for(i = stamps.length - 1; i >= 0; i--){
-    if(Math.hypot(stamps[i].x - x, stamps[i].y - y) <= ERASE_R + 6){ stamps.splice(i, 1); changed = true; }
-  }
-  return changed;
-}
 
 canvas.addEventListener("pointerdown", function(e){
-  if(drag || drawing || erasing) return;
+  if(drag) return;
   var p = toLocal(e);
-  if(tool === "move"){
+  {
     if(hitProbe(p.x, p.y)){
       e.preventDefault(); canvas.setPointerCapture(e.pointerId);
       probe.drag = true;
@@ -470,16 +397,6 @@ canvas.addEventListener("pointerdown", function(e){
     c.drag = true;
     drag = {src:"canvas", c:c, id:e.pointerId, ox:c.x - p.x, oy:c.y - p.y, sx:e.clientX, sy:e.clientY, moved:false};
     requestDraw();
-  } else if(tool === "pen"){
-    e.preventDefault(); canvas.setPointerCapture(e.pointerId);
-    var st = {color:penColor, pts:[[p.x, p.y]]};
-    strokes.push(st); undoStack.push({t:"s", o:st});
-    drawing = {id:e.pointerId, st:st};
-    requestDraw();
-  } else if(tool === "erase"){
-    e.preventDefault(); canvas.setPointerCapture(e.pointerId);
-    erasing = {id:e.pointerId, x:p.x, y:p.y};
-    eraseAt(p.x, p.y); requestDraw();
   }
 });
 
@@ -494,17 +411,6 @@ canvas.addEventListener("pointermove", function(e){
       placeCharge(drag.c, p.x + drag.ox, p.y + drag.oy);
       trash.classList.toggle("hot", inRect(trash, e));
     }
-  } else if(drawing && e.pointerId === drawing.id){
-    var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-    if(!evs.length) evs = [e];
-    var pts = drawing.st.pts;
-    for(var i = 0; i < evs.length; i++){
-      var q = toLocal(evs[i]), last = pts[pts.length - 1];
-      if(Math.hypot(q.x - last[0], q.y - last[1]) >= 1.5) pts.push([q.x, q.y]);
-    }
-    requestDraw();
-  } else if(erasing && e.pointerId === erasing.id){
-    erasing.x = p.x; erasing.y = p.y; eraseAt(p.x, p.y); requestDraw();
   }
 });
 
@@ -522,10 +428,6 @@ function endPointer(e, cancel){
       if(lastTap && lastTap.c === c && now - lastTap.t < 450){ removeCharge(c); lastTap = null; }
       else lastTap = {c:c, t:now};
     }
-  } else if(drawing && e.pointerId === drawing.id){
-    drawing = null; requestDraw();
-  } else if(erasing && e.pointerId === erasing.id){
-    erasing = null; requestDraw();
   }
 }
 canvas.addEventListener("pointerup", function(e){ endPointer(e, false); });
@@ -582,7 +484,6 @@ Array.prototype.forEach.call(document.querySelectorAll(".btn.drag"), function(bt
 });
 
 /* ---------- Voreinstellungen, Werkzeuge, Schalter ---------- */
-function clearDrawing(){ strokes = []; stamps = []; undoStack = []; requestDraw(); }
 
 function preset(name){
   charges = []; platesOn = false;
@@ -597,43 +498,14 @@ function preset(name){
     charges.push({id:nextId++, x:W * 0.65, y:cy, q:1});
   }
   if(name === "plates") platesOn = true;
-  buildPlates(); clearDrawing(); touch();
+  buildPlates(); touch();
 }
 Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function(b){
   b.addEventListener("click", function(){ preset(b.dataset.preset); });
 });
 
-function setTool(t){
-  tool = t;
-  Array.prototype.forEach.call(document.querySelectorAll(".tool"), function(b){
-    b.setAttribute("aria-pressed", b.dataset.tool === t ? "true" : "false");
-  });
-  canvas.style.cursor = t === "pen" ? "crosshair" : t === "erase" ? "cell" : "default";
-}
-Array.prototype.forEach.call(document.querySelectorAll(".tool"), function(b){
-  b.addEventListener("click", function(){ setTool(b.dataset.tool); });
-});
-Array.prototype.forEach.call(document.querySelectorAll(".sw-btn"), function(b){
-  b.addEventListener("click", function(){
-    penColor = b.dataset.color;
-    Array.prototype.forEach.call(document.querySelectorAll(".sw-btn"), function(o){
-      o.setAttribute("aria-pressed", o === b ? "true" : "false");
-    });
-    setTool("pen");
-  });
-});
-
-document.getElementById("undo").addEventListener("click", function(){
-  while(undoStack.length){
-    var h = undoStack.pop();
-    var arr = h.t === "s" ? strokes : stamps, i = arr.indexOf(h.o);
-    if(i >= 0){ arr.splice(i, 1); break; }
-  }
-  requestDraw();
-});
-document.getElementById("clearDraw").addEventListener("click", clearDrawing);
 document.getElementById("clear").addEventListener("click", function(){
-  charges = []; platesOn = false; buildPlates(); clearDrawing(); touch();
+  charges = []; platesOn = false; buildPlates(); touch();
 });
 
 function bindToggle(id, set){
@@ -646,16 +518,8 @@ function bindToggle(id, set){
 }
 bindToggle("tProbe", function(on){
   probe.on = on;
-  document.getElementById("stamp").hidden = !on;
 });
 
-/* Pfeil festhalten: Kraftrichtung an der Probeladung dauerhaft einzeichnen */
-document.getElementById("stamp").addEventListener("click", function(){
-  var e = fieldAt(probe.x, probe.y), m = Math.sqrt(e[0] * e[0] + e[1] * e[1]);
-  if(m < 1e-9) return;
-  var s = {x:probe.x, y:probe.y, a:Math.atan2(e[1], e[0])};
-  stamps.push(s); undoStack.push({t:"a", o:s}); requestDraw();
-});
 
 /* Start */
 document.querySelector("details.help").open = window.innerHeight >= 800;
