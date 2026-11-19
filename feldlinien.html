@@ -131,6 +131,7 @@
 var R = 20;            // Radius der gezeichneten Ladung (px)
 var PROBE_R = 11;      // Radius der Probeladung
 var PLATE_N = 15;
+var LINES_PER_CHARGE = 12;   // feste Anzahl Feldlinien pro Punktladung
 
 /* ---------- Zustand ---------- */
 var canvas = document.getElementById("c");
@@ -255,12 +256,12 @@ function computeLines(){
   allC.forEach(function(c){ minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y); });
   lineBounds = {x0:minX - mg, x1:maxX + mg, y0:minY - mg, y1:maxY + mg};
   var hasPos = allC.some(function(c){ return c.q > 0; });
-  var dir = hasPos ? 1 : -1, sign = dir, starts = [], N = 14, i;
+  var dir = hasPos ? 1 : -1, sign = dir, starts = [], N = LINES_PER_CHARGE, i;
   for(i = 0; i < charges.length; i++){
     var c = charges[i];
     if(c.q !== sign) continue;
     for(var k = 0; k < N; k++){
-      var a = 2 * Math.PI * k / N + 0.2;
+      var a = 2 * Math.PI * k / N;
       starts.push([c.x + (R + 4) * Math.cos(a), c.y + (R + 4) * Math.sin(a)]);
     }
   }
@@ -278,41 +279,41 @@ function computeLines(){
     lines.push(makeLine(pts, dir));
   }
 
-  // Sind keine Ladungen im Bild, wären von den Linien an der Ladung nur zufällig welche zu sehen.
-  // Deshalb zusätzlich Linien durch Punkte am Rand des Ausschnitts legen, in beide Richtungen verfolgt.
-  var anyInView = allC.some(function(c){
-    return c.x >= camX - R && c.x <= camX + W + R && c.y >= camY - R && c.y <= camY + H + R;
-  });
-  if(!anyInView){
-    var gap = 110, seeds = [], t;
-    var ec = fieldAt(camX + W / 2, camY + H / 2);
-    if(Math.abs(ec[0]) >= Math.abs(ec[1])){
-      // Feld überwiegend waagerecht: Linien kreuzen den linken Rand
-      for(t = camY + gap / 2; t < camY + H; t += gap) seeds.push([camX + 6, t]);
-    } else {
-      // Feld überwiegend senkrecht: Linien kreuzen den oberen Rand
-      for(t = camX + gap / 2; t < camX + W; t += gap) seeds.push([t, camY + 6]);
-    }
-    seeds.forEach(function(s){
-      var fwd = trace(s[0], s[1], 1), back = trace(s[0], s[1], -1).reverse();
-      var all = back.concat(fwd.slice(1));
-      if(all.length >= 3) lines.push(makeLine(all, 1));
-    });
-  }
 }
 
-// Pfeile alle ~130 px entlang der Linie; pts liegen in Richtung des Feldes, wenn dir = 1
+// Jede Linie bekommt genau einen Pfeil. pts liegen in Richtung des Feldes, wenn dir = 1.
 function makeLine(pts, dir){
-  var arrows = [], acc = 0, next = 50;
-  for(var q = 1; q < pts.length; q++){
-    var sx = pts[q][0] - pts[q - 1][0], sy = pts[q][1] - pts[q - 1][1];
-    acc += Math.sqrt(sx * sx + sy * sy);
-    if(acc >= next){
-      arrows.push({x:pts[q][0], y:pts[q][1], a:Math.atan2(dir * sy, dir * sx)});
-      next += 130;
-    }
+  return {pts:pts, dir:dir};
+}
+
+// Pfeilposition: Mitte (nach Bogenlänge) des längsten sichtbaren Stücks der Linie.
+// So hat jede Linie, die im Bild zu sehen ist, genau einen Pfeil, auch wenn man die Ansicht verschiebt.
+function arrowPos(line){
+  var pts = line.pts, inset = 14;
+  function vis(p){ return p[0] >= camX + inset && p[0] <= camX + W - inset && p[1] >= camY + inset && p[1] <= camY + H - inset; }
+  var best = null, start = -1, len = 0, i;
+  function close(end){
+    if(start >= 0 && end > start && (!best || len > best.len)) best = {a:start, b:end, len:len};
+    start = -1; len = 0;
   }
-  return {pts:pts, arrows:arrows};
+  for(i = 0; i < pts.length; i++){
+    if(vis(pts[i])){
+      if(start < 0){ start = i; len = 0; }
+      else len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    } else close(i - 1);
+  }
+  close(pts.length - 1);
+  if(!best) return null;
+  var half = best.len / 2, acc = 0;
+  for(i = best.a + 1; i <= best.b; i++){
+    var sx = pts[i][0] - pts[i - 1][0], sy = pts[i][1] - pts[i - 1][1], seg = Math.hypot(sx, sy);
+    if(acc + seg >= half){
+      var t = seg ? (half - acc) / seg : 0;
+      return {x:pts[i - 1][0] + sx * t, y:pts[i - 1][1] + sy * t, a:Math.atan2(line.dir * sy, line.dir * sx)};
+    }
+    acc += seg;
+  }
+  return null;
 }
 
 /* ---------- Darstellung ---------- */
@@ -333,12 +334,14 @@ function drawLines(){
     ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
     for(var j = 1; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]);
     ctx.stroke();
-    var ar = lines[i].arrows;
-    for(j = 0; j < ar.length; j++){
-      ctx.save(); ctx.translate(ar[j].x, ar[j].y); ctx.rotate(ar[j].a);
-      ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-6, -5); ctx.lineTo(-6, 5); ctx.closePath(); ctx.fill();
-      ctx.restore();
-    }
+  }
+  // genau ein Pfeil pro Linie
+  for(i = 0; i < lines.length; i++){
+    var ap = arrowPos(lines[i]);
+    if(!ap) continue;
+    ctx.save(); ctx.translate(ap.x, ap.y); ctx.rotate(ap.a);
+    ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-7, -6); ctx.lineTo(-7, 6); ctx.closePath(); ctx.fill();
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
 }
