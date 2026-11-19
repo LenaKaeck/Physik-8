@@ -67,7 +67,7 @@
     box-shadow:0 10px 30px rgba(0,0,0,.4);
   }
   .stage{position:relative;height:100%;border-radius:10px;overflow:hidden;background:#fff;}
-  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:default;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;}
   #trash{
     position:absolute;right:12px;bottom:12px;width:62px;height:62px;border:3px dashed #aab3c5;border-radius:16px;
     display:grid;place-items:center;font-size:28px;background:rgba(255,255,255,.92);pointer-events:none;transition:all .12s;
@@ -88,7 +88,7 @@
     <h1>Feldlinien erforschen <span>–</span> Wie verläuft das elektrische Feld?</h1>
     <details class="help">
       <summary>Anleitung</summary>
-      <p>Zieht Ladungen auf die Fläche und beobachtet, wie die Feldlinien verlaufen. Mit der Probeladung seht ihr, in welche Richtung die Kraft zeigt.</p>
+      <p>Zieht Ladungen auf die Fläche und beobachtet, wie die Feldlinien verlaufen. Mit der Probeladung seht ihr, in welche Richtung die Kraft zeigt. Verschiebt die Fläche nach links und rechts (ziehen oder mit den Knöpfen): Gehen die Feldlinien irgendwo zu Ende?</p>
     </details>
   </header>
 
@@ -105,6 +105,11 @@
     </div>
     <div class="group">
       <button class="btn toggle" type="button" id="tProbe" aria-pressed="false"><span class="sw"></span>Probeladung</button>
+    </div>
+    <div class="group">
+      <button class="btn" type="button" id="panL" aria-label="Ansicht nach links schieben">◀ Links</button>
+      <button class="btn" type="button" id="panHome" aria-label="Ansicht zu den Ladungen zurück">Mitte</button>
+      <button class="btn" type="button" id="panR" aria-label="Ansicht nach rechts schieben">Rechts ▶</button>
     </div>
     <div class="group">
       <button class="btn" type="button" id="clear">Alles löschen</button>
@@ -143,6 +148,13 @@ var probe = {on:false, x:0, y:0, drag:false};
 var showLines = true, lines = [], linesDirty = true;   // Feldlinien sind immer sichtbar
 var drag = null, lastTap = null, scheduled = false;
 
+/* Ansicht: Alle Positionen sind Weltkoordinaten. (camX, camY) ist die Welt-Position der linken oberen Ecke der Fläche. */
+var camX = 0, camY = 0;
+var linesCam = {x:0, y:0};        // Ansicht, für die die Linien zuletzt berechnet wurden
+var lineBounds = {x0:0, y0:0, x1:0, y1:0};
+var plateGeom = null, panToken = 0;
+var GRID = 100;                   // Abstand der dezenten Rasterpunkte (Welt-px)
+
 /* ---------- Hilfsfunktionen ---------- */
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
@@ -162,8 +174,8 @@ function touch(){
 
 function buildPlates(){
   plateCharges = []; plateRects = [];
-  if(!platesOn) return;
-  var xl = W * 0.32, xr = W * 0.68, y0 = H * 0.18, y1 = H * 0.82;
+  if(!platesOn || !plateGeom) return;
+  var xl = plateGeom.xl, xr = plateGeom.xr, y0 = plateGeom.y0, y1 = plateGeom.y1;
   for(var i = 0; i < PLATE_N; i++){
     var y = y0 + (y1 - y0) * i / (PLATE_N - 1);
     plateCharges.push({x:xl, y:y, q:1, plate:true});
@@ -203,14 +215,24 @@ function hitsTarget(x, y, dir){
   return false;
 }
 
+function nearestDist(x, y){
+  var best = 1e9;
+  for(var j = 0; j < allC.length; j++){
+    var dx = x - allC[j].x, dy = y - allC[j].y, d = dx * dx + dy * dy;
+    if(d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
+
 function trace(sx, sy, dir){
-  var h = 4, x = sx, y = sy, pts = [[x, y]];
+  var x = sx, y = sy, pts = [[x, y]];
   function f(px, py){
     var e = fieldAt(px, py), m = Math.sqrt(e[0] * e[0] + e[1] * e[1]);
     return m < 1e-12 ? null : [dir * e[0] / m, dir * e[1] / m];
   }
-  var mg = Math.max(W, H) * 1.5;
-  for(var i = 0; i < 2500; i++){
+  var lb = lineBounds;
+  for(var i = 0; i < 4000; i++){
+    var h = clamp(nearestDist(x, y) * 0.06, 4, 40);   // weit weg von den Ladungen größere Schritte
     var k1 = f(x, y); if(!k1) break;
     var k2 = f(x + h / 2 * k1[0], y + h / 2 * k1[1]); if(!k2) break;
     var k3 = f(x + h / 2 * k2[0], y + h / 2 * k2[1]); if(!k3) break;
@@ -218,7 +240,7 @@ function trace(sx, sy, dir){
     x += h / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
     y += h / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
     pts.push([x, y]);
-    if(x < -mg || x > W + mg || y < -mg || y > H + mg) break;
+    if(x < lb.x0 || x > lb.x1 || y < lb.y0 || y > lb.y1) break;
     if(hitsTarget(x, y, dir)) break;
   }
   return pts;
@@ -226,7 +248,12 @@ function trace(sx, sy, dir){
 
 function computeLines(){
   lines = [];
+  linesCam = {x:camX, y:camY};
   if(allC.length === 0) return;
+  // Berechnungsbereich: sichtbarer Ausschnitt und alle Ladungen, großzügig erweitert
+  var minX = camX, maxX = camX + W, minY = camY, maxY = camY + H, mg = Math.max(W, H) * 1.5;
+  allC.forEach(function(c){ minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y); });
+  lineBounds = {x0:minX - mg, x1:maxX + mg, y0:minY - mg, y1:maxY + mg};
   var hasPos = allC.some(function(c){ return c.q > 0; });
   var dir = hasPos ? 1 : -1, sign = dir, starts = [], N = 14, i;
   for(i = 0; i < charges.length; i++){
@@ -248,17 +275,44 @@ function computeLines(){
   for(i = 0; i < starts.length; i++){
     var pts = trace(starts[i][0], starts[i][1], dir);
     if(pts.length < 3) continue;
-    var arrows = [], acc = 0, next = 50;
-    for(var q = 1; q < pts.length; q++){
-      var sx = pts[q][0] - pts[q - 1][0], sy = pts[q][1] - pts[q - 1][1];
-      acc += Math.sqrt(sx * sx + sy * sy);
-      if(acc >= next){
-        arrows.push({x:pts[q][0], y:pts[q][1], a:Math.atan2(dir * sy, dir * sx)});
-        next += 130;
-      }
-    }
-    lines.push({pts:pts, arrows:arrows});
+    lines.push(makeLine(pts, dir));
   }
+
+  // Sind keine Ladungen im Bild, wären von den Linien an der Ladung nur zufällig welche zu sehen.
+  // Deshalb zusätzlich Linien durch Punkte am Rand des Ausschnitts legen, in beide Richtungen verfolgt.
+  var anyInView = allC.some(function(c){
+    return c.x >= camX - R && c.x <= camX + W + R && c.y >= camY - R && c.y <= camY + H + R;
+  });
+  if(!anyInView){
+    var gap = 110, seeds = [], t;
+    var ec = fieldAt(camX + W / 2, camY + H / 2);
+    if(Math.abs(ec[0]) >= Math.abs(ec[1])){
+      // Feld überwiegend waagerecht: Linien kreuzen den linken Rand
+      for(t = camY + gap / 2; t < camY + H; t += gap) seeds.push([camX + 6, t]);
+    } else {
+      // Feld überwiegend senkrecht: Linien kreuzen den oberen Rand
+      for(t = camX + gap / 2; t < camX + W; t += gap) seeds.push([t, camY + 6]);
+    }
+    seeds.forEach(function(s){
+      var fwd = trace(s[0], s[1], 1), back = trace(s[0], s[1], -1).reverse();
+      var all = back.concat(fwd.slice(1));
+      if(all.length >= 3) lines.push(makeLine(all, 1));
+    });
+  }
+}
+
+// Pfeile alle ~130 px entlang der Linie; pts liegen in Richtung des Feldes, wenn dir = 1
+function makeLine(pts, dir){
+  var arrows = [], acc = 0, next = 50;
+  for(var q = 1; q < pts.length; q++){
+    var sx = pts[q][0] - pts[q - 1][0], sy = pts[q][1] - pts[q - 1][1];
+    acc += Math.sqrt(sx * sx + sy * sy);
+    if(acc >= next){
+      arrows.push({x:pts[q][0], y:pts[q][1], a:Math.atan2(dir * sy, dir * sx)});
+      next += 130;
+    }
+  }
+  return {pts:pts, arrows:arrows};
 }
 
 /* ---------- Darstellung ---------- */
@@ -317,9 +371,20 @@ function drawProbe(){
   ctx.moveTo(probe.x, probe.y - 4.5); ctx.lineTo(probe.x, probe.y + 4.5); ctx.stroke();
 }
 
+function drawGrid(){
+  // dezente Rasterpunkte, damit man beim Verschieben die Bewegung sieht
+  ctx.fillStyle = "#d9dde8";
+  var gx0 = Math.floor(camX / GRID) * GRID, gy0 = Math.floor(camY / GRID) * GRID;
+  for(var gx = gx0; gx <= camX + W; gx += GRID){
+    for(var gy = gy0; gy <= camY + H; gy += GRID) ctx.fillRect(gx - 1.5, gy - 1.5, 3, 3);
+  }
+}
+
 function draw(){
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(dpr, 0, 0, dpr, -camX * dpr, -camY * dpr);   // ab hier Weltkoordinaten
+  drawGrid();
   if(showLines) drawLines();
   for(var p = 0; p < plateRects.length; p++){
     var rc = plateRects[p];
@@ -337,11 +402,7 @@ function resize(){
   var r = stage.getBoundingClientRect();
   var nw = Math.max(1, Math.floor(r.width)), nh = Math.max(1, Math.floor(r.height));
   if(nw === W && nh === H && dpr === (window.devicePixelRatio || 1)) return;
-  if(W > 0){
-    var sx = nw / W, sy = nh / H, i;
-    for(i = 0; i < charges.length; i++){ charges[i].x *= sx; charges[i].y *= sy; }
-    probe.x *= sx; probe.y *= sy;
-  } else { probe.x = nw * 0.5; probe.y = nh * 0.3; }
+  if(W === 0){ probe.x = nw * 0.5; probe.y = nh * 0.3; }
   W = nw; H = nh; dpr = window.devicePixelRatio || 1;
   canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
   buildPlates(); touch();
@@ -374,34 +435,84 @@ function hitProbe(x, y){
   var dx = x - probe.x, dy = y - probe.y;
   return dx * dx + dy * dy <= (PROBE_R + 14) * (PROBE_R + 14);
 }
-function placeCharge(c, x, y){
-  c.x = clamp(x, R, W - R); c.y = clamp(y, R, H - R); touch();
+function toWorld(e){
+  var p = toLocal(e);
+  return {x:p.x + camX, y:p.y + camY};
 }
+// Ladungen bleiben beim Ziehen im sichtbaren Ausschnitt, damit man sie nicht verliert
+function placeCharge(c, x, y){
+  c.x = clamp(x, camX + R, camX + W - R); c.y = clamp(y, camY + R, camY + H - R); touch();
+}
+
+/* ---------- Ansicht verschieben ---------- */
+function moveCam(x, y){
+  camX = x; camY = y;
+  if(Math.abs(camX - linesCam.x) > W * 0.3 || Math.abs(camY - linesCam.y) > H * 0.3) linesDirty = true;
+  requestDraw();
+}
+function panTo(tx, ty){
+  var token = ++panToken, sx = camX, sy = camY, t0 = performance.now();
+  function step(t){
+    if(token !== panToken) return;
+    var k = Math.min(1, (t - t0) / 300);
+    k = 1 - Math.pow(1 - k, 3);
+    moveCam(sx + (tx - sx) * k, sy + (ty - sy) * k);
+    if(k < 1) requestAnimationFrame(step); else { linesDirty = true; requestDraw(); }
+  }
+  requestAnimationFrame(step);
+}
+function panBy(dx, dy){ panTo(camX + dx, camY + dy); }
+function panHome(){
+  var xs = [], ys = [];
+  charges.forEach(function(c){ xs.push(c.x); ys.push(c.y); });
+  if(platesOn && plateGeom){ xs.push(plateGeom.xl, plateGeom.xr); ys.push(plateGeom.y0, plateGeom.y1); }
+  if(!xs.length){ panTo(0, 0); return; }
+  var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2, cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
+  panTo(cx - W / 2, cy - H / 2);
+}
+document.getElementById("panL").addEventListener("click", function(){ panBy(-W * 0.6, 0); });
+document.getElementById("panR").addEventListener("click", function(){ panBy(W * 0.6, 0); });
+document.getElementById("panHome").addEventListener("click", panHome);
+window.addEventListener("keydown", function(e){
+  if(e.key === "ArrowLeft"){ panBy(-W * 0.4, 0); e.preventDefault(); }
+  else if(e.key === "ArrowRight"){ panBy(W * 0.4, 0); e.preventDefault(); }
+});
+canvas.addEventListener("wheel", function(e){
+  e.preventDefault(); panToken++;
+  moveCam(camX + (e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX), camY + (e.shiftKey ? 0 : e.deltaY));
+}, {passive:false});
 
 canvas.addEventListener("pointerdown", function(e){
   if(drag) return;
-  var p = toLocal(e);
-  {
-    if(hitProbe(p.x, p.y)){
-      e.preventDefault(); canvas.setPointerCapture(e.pointerId);
-      probe.drag = true;
-      drag = {src:"probe", id:e.pointerId, ox:probe.x - p.x, oy:probe.y - p.y};
-      requestDraw(); return;
-    }
-    var c = hitCharge(p.x, p.y);
-    if(!c) return;
-    e.preventDefault(); canvas.setPointerCapture(e.pointerId);
+  var p = toWorld(e);
+  e.preventDefault();
+  if(hitProbe(p.x, p.y)){
+    canvas.setPointerCapture(e.pointerId);
+    probe.drag = true;
+    drag = {src:"probe", id:e.pointerId, ox:probe.x - p.x, oy:probe.y - p.y};
+    requestDraw(); return;
+  }
+  var c = hitCharge(p.x, p.y);
+  canvas.setPointerCapture(e.pointerId);
+  if(c){
     c.drag = true;
     drag = {src:"canvas", c:c, id:e.pointerId, ox:c.x - p.x, oy:c.y - p.y, sx:e.clientX, sy:e.clientY, moved:false};
-    requestDraw();
+  } else {
+    // leere Fläche: Ansicht mit Finger oder Maus verschieben
+    panToken++;
+    drag = {src:"pan", id:e.pointerId, sx:e.clientX, sy:e.clientY, cx:camX, cy:camY};
+    canvas.style.cursor = "grabbing";
   }
+  requestDraw();
 });
 
 canvas.addEventListener("pointermove", function(e){
-  var p = toLocal(e);
+  var p = toWorld(e);
   if(drag && e.pointerId === drag.id){
-    if(drag.src === "probe"){
-      probe.x = clamp(p.x + drag.ox, PROBE_R, W - PROBE_R); probe.y = clamp(p.y + drag.oy, PROBE_R, H - PROBE_R);
+    if(drag.src === "pan"){
+      moveCam(drag.cx - (e.clientX - drag.sx), drag.cy - (e.clientY - drag.sy));
+    } else if(drag.src === "probe"){
+      probe.x = clamp(p.x + drag.ox, camX + PROBE_R, camX + W - PROBE_R); probe.y = clamp(p.y + drag.oy, camY + PROBE_R, camY + H - PROBE_R);
       requestDraw();
     } else if(drag.src === "canvas"){
       if(Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 6) drag.moved = true;
@@ -414,6 +525,7 @@ canvas.addEventListener("pointermove", function(e){
 function endPointer(e, cancel){
   if(drag && e.pointerId === drag.id){
     if(drag.src === "probe"){ probe.drag = false; drag = null; requestDraw(); return; }
+    if(drag.src === "pan"){ drag = null; canvas.style.cursor = "grab"; linesDirty = true; requestDraw(); return; }
     var c = drag.c, moved = drag.moved;
     c.drag = false; drag = null; trash.classList.remove("hot"); requestDraw();
     if(cancel) return;
@@ -451,7 +563,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".btn.drag"), function(bt
     if(!drag || drag.src !== "btn" || e.pointerId !== drag.id) return;
     if(Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 8) drag.moved = true;
     if(inRect(canvas, e)){
-      var p = toLocal(e);
+      var p = toWorld(e);
       if(!drag.c){
         drag.c = {id:nextId++, x:p.x, y:p.y, q:q, drag:true};
         charges.push(drag.c); ghost.style.display = "none";
@@ -471,7 +583,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".btn.drag"), function(bt
       c.drag = false;
       if(cancel || inRect(trash, e)) removeCharge(c);
     } else if(!cancel && !moved){
-      charges.push({id:nextId++, x:clamp(W * (0.3 + 0.4 * Math.random()), R, W - R), y:clamp(H * (0.3 + 0.4 * Math.random()), R, H - R), q:q});
+      charges.push({id:nextId++, x:camX + clamp(W * (0.3 + 0.4 * Math.random()), R, W - R), y:camY + clamp(H * (0.3 + 0.4 * Math.random()), R, H - R), q:q});
       touch();
     }
     requestDraw();
@@ -484,17 +596,21 @@ Array.prototype.forEach.call(document.querySelectorAll(".btn.drag"), function(bt
 
 function preset(name){
   charges = []; platesOn = false;
-  var cx = W / 2, cy = H / 2;
+  // Alles relativ zum gerade sichtbaren Ausschnitt platzieren
+  var cx = camX + W / 2, cy = camY + H / 2;
   if(name === "one") charges.push({id:nextId++, x:cx, y:cy, q:1});
   if(name === "dipole"){
-    charges.push({id:nextId++, x:W * 0.35, y:cy, q:1});
-    charges.push({id:nextId++, x:W * 0.65, y:cy, q:-1});
+    charges.push({id:nextId++, x:camX + W * 0.35, y:cy, q:1});
+    charges.push({id:nextId++, x:camX + W * 0.65, y:cy, q:-1});
   }
   if(name === "same"){
-    charges.push({id:nextId++, x:W * 0.35, y:cy, q:1});
-    charges.push({id:nextId++, x:W * 0.65, y:cy, q:1});
+    charges.push({id:nextId++, x:camX + W * 0.35, y:cy, q:1});
+    charges.push({id:nextId++, x:camX + W * 0.65, y:cy, q:1});
   }
-  if(name === "plates") platesOn = true;
+  if(name === "plates"){
+    platesOn = true;
+    plateGeom = {xl:camX + W * 0.32, xr:camX + W * 0.68, y0:camY + H * 0.18, y1:camY + H * 0.82};
+  }
   buildPlates(); touch();
 }
 Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function(b){
@@ -515,6 +631,10 @@ function bindToggle(id, set){
 }
 bindToggle("tProbe", function(on){
   probe.on = on;
+  // Probeladung zurück in den sichtbaren Ausschnitt holen, falls die Ansicht verschoben wurde
+  if(on && (probe.x < camX || probe.x > camX + W || probe.y < camY || probe.y > camY + H)){
+    probe.x = camX + W * 0.5; probe.y = camY + H * 0.3;
+  }
 });
 
 

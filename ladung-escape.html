@@ -59,6 +59,19 @@
   .shake{animation:shake .35s;}
   @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
   .big{font-family:'Kalam',cursive;font-size:3rem;color:var(--yellow);letter-spacing:.15em;}
+
+  /* Lösungen am Ende */
+  .sol-title{font-size:1.8rem;margin:26px 0 8px;}
+  .sol{margin:0 0 14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.15);}
+  .sol h3{margin:0 0 4px;font-family:'Kalam',cursive;font-size:1.4rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .sol-letter{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:8px;background:rgba(232,194,91,.15);
+    border:1.5px solid var(--yellow);color:var(--yellow);font-size:1.2rem;}
+  .panel p.sol-story{margin:0 0 8px;font-size:.92rem;max-width:none;}
+  .sol-row{padding:5px 0;border-bottom:1px solid var(--line);line-height:1.8;color:var(--ink);}
+  .sol-row:last-child{border-bottom:0;}
+  .ans{color:var(--green);}
+  .sol-steps{margin:0;padding-left:22px;line-height:1.7;}
+  .sol-steps li{padding:3px 0;}
 </style>
 </head>
 <body>
@@ -421,6 +434,18 @@ function openDoor(){
 }
 
 /* ---------- Ende ---------- */
+/* Alle Stationen mit den richtigen Antworten untereinander, zum Vergleichen */
+function solutionsHtml(){
+  const parts = STATIONS.map(s => {
+    const body = s.type === "order"
+      ? `<ol class="sol-steps">${s.steps.map(t => `<li>${t}</li>`).join("")}</ol>`
+      : s.rows.map(r => `<div class="sol-row">${r.pre}<b class="ans">${r.opts[r.ans]}</b>${r.post || ""}</div>`).join("");
+    return `<section class="sol"><h3>${s.ico} ${s.title} <span class="sol-letter">${s.letter}</span></h3>
+      <p class="sol-story">${s.story}</p>${body}</section>`;
+  });
+  return `<h2 class="sol-title">Alle Lösungen im Überblick</h2>${parts.join("")}`;
+}
+
 function showEnd(win){
   clearInterval(tick);
   $("game").classList.add("hidden");
@@ -435,6 +460,7 @@ function showEnd(win){
       <li>Atome: Elektronen-Überschuss ist negativ, Elektronen-Mangel positiv.</li>
       <li>Das Elektroskop zeigt die Menge der Ladung, nicht die Ladungsart.</li></ul>`
    : `<h1>Zeit abgelaufen</h1><p>Untersucht: ${Object.keys(solved).length} von 4 Gegenständen. Das Codewort lautet <b class="big">ATOM</b>. Besprecht gemeinsam, was schwierig war.</p>`;
+  el.innerHTML += solutionsHtml();
   el.innerHTML += `<div class="actions"><button class="btn" onclick="location.reload()">Nochmal spielen</button>
     <a class="btn ghost" style="text-decoration:none" href="index.html">Zur Themenübersicht</a></div>`;
 }
