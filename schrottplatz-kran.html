@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Der Schrottplatz-Kran</title>
+<style>
+  :root {
+    --bg: #eef1f5;
+    --ink: #1c2733;
+    --head: #1f3a5f;
+    --accent: #e0a100;
+    --card: #fffdf5;
+    --card-edge: #d8d0b8;
+    --btn: #1f5fa8;
+    --btn-dark: #174a86;
+    --drop: #e3e7ed;
+    --drop-edge: #7d8897;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 0 16px 90px; }
+
+  header { padding: 16px 0 10px; }
+  h1 {
+    margin: 0 0 10px;
+    font-size: 32px;
+    line-height: 1.15;
+    color: var(--head);
+  }
+  .frage {
+    background: #fff6d6;
+    border-left: 8px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-size: 22px;
+    line-height: 1.4;
+    font-weight: 600;
+    max-width: 1100px;
+  }
+  .hinweis { margin: 10px 0 0; color: #43505e; font-size: 17px; }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    margin: 12px 0 8px;
+  }
+  button {
+    font: inherit; font-weight: 600; font-size: 18px;
+    min-height: 48px; padding: 8px 22px;
+    border: 0; border-radius: 10px;
+    background: var(--btn); color: #fff;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:active { background: var(--btn-dark); }
+  button.zweit { background: #fff; color: var(--btn); border: 2px solid var(--btn); }
+  button.zweit:active { background: #e6eefa; }
+  button:disabled { background: #9aa6b4; color: #fff; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .zaehler { font-size: 17px; color: #43505e; }
+
+  .panel {
+    background: #fff; border: 2px solid var(--btn); border-radius: 10px;
+    padding: 12px 16px; margin: 8px 0; max-width: 1100px;
+  }
+  .panel[hidden] { display: none; }
+  .panel .reihe { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+  .tipp { margin: 6px 0; font-size: 19px; }
+  .tipp b { color: var(--head); }
+
+  #arena {
+    position: relative;
+    margin-top: 10px;
+    background: #fafbfc;
+    border: 2px solid #cfd6df;
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 300px;
+  }
+  #drop {
+    position: absolute;
+    z-index: 0;
+    background: var(--drop);
+    border: 3px dashed var(--drop-edge);
+    border-radius: 14px;
+    pointer-events: none;
+    transition: background .15s, border-color .15s;
+  }
+  #drop.over { background: #d3dae4; border-color: var(--head); }
+  #drop span {
+    display: block;
+    padding: 12px 14px;
+    font-size: 19px; font-weight: 700;
+    color: #4b5866; text-align: center;
+  }
+
+  .card {
+    position: absolute;
+    width: 220px;
+    padding: 14px 15px;
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(30, 40, 55, .22);
+    font-size: 17.5px;
+    line-height: 1.38;
+    transform: rotate(var(--rot, 0deg));
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    cursor: grab;
+  }
+  .card p { margin: 0; pointer-events: none; }
+  .card.dragging {
+    cursor: grabbing;
+    box-shadow: 0 10px 22px rgba(30, 40, 55, .35);
+    transform: rotate(var(--rot, 0deg)) scale(1.04);
+  }
+
+  .fuss {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 100000;
+    background: var(--head); color: #fff;
+    text-align: center; font-size: 19px; font-weight: 600;
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  @media (max-width: 700px) {
+    h1 { font-size: 26px; }
+    .frage { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Der Schrottplatz-Kran</h1>
+    <div class="frage">Ben arbeitet als Kranführer auf einem Schrottplatz. Er hebt ein altes Auto hoch, schwenkt es über die Schrottpresse und lässt es genau dort fallen – nur mit einem Knopfdruck. Warum benutzt Ben dafür einen Elektromagneten und keinen Dauermagneten?</div>
+    <p class="hinweis">Verschiebe die Karten mit dem Finger. Ordne sie so, dass sie helfen, die Frage zu beantworten.</p>
+  </header>
+
+  <div class="toolbar">
+    <button id="tippBtn" type="button">Tipp</button>
+    <span class="zaehler" id="zaehler" aria-live="polite"></span>
+    <button id="mischBtn" type="button" class="zweit">Neu mischen</button>
+  </div>
+
+  <div class="panel" id="tippPanel" hidden></div>
+
+  <div class="panel" id="frageMisch" hidden role="alertdialog" aria-labelledby="frageMischText">
+    <div id="frageMischText"><b>Wirklich neu mischen?</b> Alle Karten werden neu verteilt und die Tipps werden zurückgesetzt.</div>
+    <div class="reihe">
+      <button id="mischJa" type="button">Ja, neu mischen</button>
+      <button id="mischNein" type="button" class="zweit">Abbrechen</button>
+    </div>
+  </div>
+
+  <div id="arena">
+    <div id="drop"><span>Passt nicht zur Frage</span></div>
+  </div>
+</div>
+
+<div class="fuss">Schreibe deine Erklärung in dein Heft auf die Seite Station 3.</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TEXTE = [
+    'Am Kran hängt eine runde, schwere Platte. Darin steckt eine große Spule aus Kupferdraht mit einem Eisenkern.',
+    'Drückt Ben auf den Knopf „AN“, fließt elektrischer Strom durch die Spule.',
+    'Ein Draht, durch den Strom fließt, wirkt wie ein schwacher Magnet.',
+    'Wickelt man den Draht zu einer Spule und steckt einen Eisenkern hinein, wird die magnetische Wirkung viel stärker.',
+    'Ohne Strom ist die Spule mit dem Eisenkern so gut wie gar nicht magnetisch.',
+    'Ein Auto besteht zum großen Teil aus Stahl. Stahl enthält viel Eisen.',
+    'Magnete ziehen Gegenstände aus Eisen an.',
+    'Über der Schrottpresse drückt Ben auf den Knopf „AUS“. Jetzt fließt kein Strom mehr.',
+    'Ein Dauermagnet ist immer magnetisch. Man kann ihn nicht ausschalten.',
+    'Ein Magnet, der ein Auto heben kann, hält es sehr fest. Mit der Hand bekommt man es nicht wieder ab.',
+    'Für den Kran braucht der Schrottplatz elektrische Energie aus dem Stromnetz.',
+    'Die Platte am Kran ist schwarz lackiert, damit sie nicht rostet.',
+    'Ben fährt jeden Morgen mit dem Fahrrad zur Arbeit.',
+    'Alte Autoreifen werden auf dem Schrottplatz getrennt gesammelt.'
+  ];
+
+  var TIPPS = [
+    'Legt zuerst alle Karten zur Seite, die mit der Frage nichts zu tun haben.',
+    'Ordnet die übrigen Karten in zwei Gruppen: „Was passiert beim Einschalten?“ und „Was passiert beim Ausschalten?“',
+    'Stellt euch vor, am Kran hinge ein Dauermagnet. Wie bekäme Ben das Auto dann wieder ab?'
+  ];
+
+  var CARD_W = 220;
+  var arena = document.getElementById('arena');
+  var drop = document.getElementById('drop');
+  var tippBtn = document.getElementById('tippBtn');
+  var zaehler = document.getElementById('zaehler');
+  var tippPanel = document.getElementById('tippPanel');
+  var frageMisch = document.getElementById('frageMisch');
+  var mischBtn = document.getElementById('mischBtn');
+
+  var cards = [];
+  var zTop = 10;
+  var tippsGezeigt = 0;
+  var bewegt = false;
+  var lastWidth = 0;
+
+  /* ---------- Karten erzeugen ---------- */
+  TEXTE.forEach(function (t) {
+    var c = document.createElement('div');
+    c.className = 'card';
+    var p = document.createElement('p');
+    p.textContent = t;
+    c.appendChild(p);
+    c.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    arena.appendChild(c);
+    cards.push(c);
+    macheZiehbar(c);
+  });
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var x = a[i]; a[i] = a[j]; a[j] = x;
+    }
+    return a;
+  }
+  function rnd(min, max) { return min + Math.random() * (max - min); }
+
+  /* ---------- Geometrie / Verteilung ---------- */
+  var geo = { dropX: 0, dropY: 0, dropW: 0, dropH: 0 };
+
+  function berechneGeometrie() {
+    var aw = arena.clientWidth;
+    var quer = aw >= 900;
+    var cellW = CARD_W + 12;
+    var cols, dropW, mainW;
+    if (quer) {
+      cols = Math.max(2, Math.floor((aw - 270) / cellW));
+      dropW = Math.max(270, Math.min(340, aw - cols * cellW));
+      mainW = aw - dropW - 12;
+    } else {
+      cols = Math.max(1, Math.floor(aw / cellW));
+      dropW = aw;
+      mainW = aw;
+    }
+    return { aw: aw, quer: quer, cols: cols, dropW: dropW, mainW: mainW };
+  }
+
+  function verteile() {
+    var g = berechneGeometrie();
+    var order = shuffle(cards.slice());
+    var maxH = 0;
+    order.forEach(function (c) { maxH = Math.max(maxH, c.offsetHeight); });
+    var rowStep = maxH + 26;
+    var rows = Math.ceil(order.length / g.cols);
+    var colStep = g.mainW / g.cols;
+    var jx = Math.max(0, Math.min(8, (colStep - CARD_W) / 2 - 4));
+    var mainH = rows * rowStep + 16;
+
+    var dropH, arenaH;
+    if (g.quer) {
+      arenaH = Math.max(mainH, 420);
+      dropH = arenaH - 24;
+      geo = { dropX: g.aw - g.dropW - 12, dropY: 12, dropW: g.dropW, dropH: dropH };
+    } else {
+      dropH = 260;
+      arenaH = mainH + dropH + 24;
+      geo = { dropX: 12, dropY: mainH + 4, dropW: g.aw - 24, dropH: dropH };
+    }
+    arena.style.height = arenaH + 'px';
+    drop.style.left = geo.dropX + 'px';
+    drop.style.top = geo.dropY + 'px';
+    drop.style.width = geo.dropW + 'px';
+    drop.style.height = geo.dropH + 'px';
+
+    order.forEach(function (c, i) {
+      var col = i % g.cols, row = Math.floor(i / g.cols);
+      var x = col * colStep + (colStep - CARD_W) / 2 + rnd(-jx, jx);
+      var y = 10 + row * rowStep + rnd(-6, 6);
+      c.style.left = Math.max(0, x) + 'px';
+      c.style.top = Math.max(0, y) + 'px';
+      c.style.setProperty('--rot', rnd(-1.8, 1.8).toFixed(2) + 'deg');
+      c.style.zIndex = 1 + i;
+    });
+    zTop = 10 + cards.length;
+    lastWidth = g.aw;
+    bewegt = false;
+  }
+
+  function klammereAlle() {
+    var g = berechneGeometrie();
+    var aw = g.aw, ah = arena.clientHeight;
+    cards.forEach(function (c) {
+      var x = parseFloat(c.style.left) || 0;
+      var y = parseFloat(c.style.top) || 0;
+      c.style.left = Math.max(0, Math.min(aw - c.offsetWidth, x)) + 'px';
+      c.style.top = Math.max(0, Math.min(ah - c.offsetHeight, y)) + 'px';
+    });
+  }
+
+  /* ---------- Ziehen (Pointer Events) ---------- */
+  var drag = null;
+  var raf = 0;
+
+  function macheZiehbar(card) {
+    card.addEventListener('pointerdown', function (e) {
+      if (drag) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      var r = card.getBoundingClientRect();
+      var cr = arena.getBoundingClientRect();
+      drag = {
+        card: card, id: e.pointerId,
+        dx: e.clientX - (parseFloat(card.style.left) + cr.left),
+        dy: e.clientY - (parseFloat(card.style.top) + cr.top),
+        x: e.clientX, y: e.clientY
+      };
+      try { card.setPointerCapture(e.pointerId); } catch (err) {}
+      card.style.zIndex = ++zTop;
+      card.classList.add('dragging');
+      bewegt = true;
+      if (!raf) raf = requestAnimationFrame(schleife);
+    });
+    card.addEventListener('pointermove', function (e) {
+      if (!drag || e.pointerId !== drag.id || drag.card !== card) return;
+      e.preventDefault();
+      drag.x = e.clientX; drag.y = e.clientY;
+      setze();
+    });
+    var ende = function (e) {
+      if (!drag || e.pointerId !== drag.id || drag.card !== card) return;
+      try { card.releasePointerCapture(e.pointerId); } catch (err) {}
+      card.classList.remove('dragging');
+      drop.classList.remove('over');
+      drag = null;
+    };
+    card.addEventListener('pointerup', ende);
+    card.addEventListener('pointercancel', ende);
+    card.addEventListener('lostpointercapture', ende);
+  }
+
+  function setze() {
+    if (!drag) return;
+    var c = drag.card;
+    var cr = arena.getBoundingClientRect();
+    var w = c.offsetWidth, h = c.offsetHeight;
+    var x = drag.x - cr.left - drag.dx;
+    var y = drag.y - cr.top - drag.dy;
+    x = Math.max(0, Math.min(arena.clientWidth - w, x));
+    y = Math.max(0, Math.min(arena.clientHeight - h, y));
+    c.style.left = x + 'px';
+    c.style.top = y + 'px';
+    var cx = x + w / 2, cy = y + h / 2;
+    var drin = cx > geo.dropX && cx < geo.dropX + geo.dropW &&
+               cy > geo.dropY && cy < geo.dropY + geo.dropH;
+    drop.classList.toggle('over', drin);
+  }
+
+  /* Seite automatisch mitscrollen, wenn eine Karte am Rand gehalten wird */
+  function schleife() {
+    raf = 0;
+    if (!drag) return;
+    var edge = 110, bottomEdge = 150;
+    if (drag.y > window.innerHeight - bottomEdge) window.scrollBy(0, 14);
+    else if (drag.y < edge) window.scrollBy(0, -14);
+    setze();
+    raf = requestAnimationFrame(schleife);
+  }
+
+  /* Pinch-Zoom in Safari auf der Arbeitsfläche verhindern */
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) {
+    arena.addEventListener(n, function (e) { e.preventDefault(); });
+  });
+
+  /* ---------- Tipps ---------- */
+  function zeigeTipps() {
+    tippPanel.innerHTML = '';
+    for (var i = 0; i < tippsGezeigt; i++) {
+      var p = document.createElement('p');
+      p.className = 'tipp';
+      var b = document.createElement('b');
+      b.textContent = 'Tipp ' + (i + 1) + ': ';
+      p.appendChild(b);
+      p.appendChild(document.createTextNode(TIPPS[i]));
+      tippPanel.appendChild(p);
+    }
+    tippPanel.hidden = tippsGezeigt === 0;
+    if (tippsGezeigt === 0) {
+      zaehler.textContent = '';
+      tippBtn.disabled = false;
+      tippBtn.textContent = 'Tipp';
+    } else {
+      zaehler.textContent = 'Tipp ' + tippsGezeigt + ' von ' + TIPPS.length;
+      if (tippsGezeigt >= TIPPS.length) {
+        tippBtn.disabled = true;
+        tippBtn.textContent = 'Alle Tipps gezeigt';
+      } else {
+        tippBtn.textContent = 'Nächster Tipp';
+      }
+    }
+  }
+  tippBtn.addEventListener('click', function () {
+    if (tippsGezeigt < TIPPS.length) { tippsGezeigt++; zeigeTipps(); }
+  });
+
+  /* ---------- Neu mischen ---------- */
+  mischBtn.addEventListener('click', function () {
+    frageMisch.hidden = false;
+    frageMisch.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+  document.getElementById('mischNein').addEventListener('click', function () {
+    frageMisch.hidden = true;
+  });
+  document.getElementById('mischJa').addEventListener('click', function () {
+    frageMisch.hidden = true;
+    tippsGezeigt = 0;
+    zeigeTipps();
+    verteile();
+  });
+
+  /* ---------- Größenänderung / Drehen ---------- */
+  window.addEventListener('resize', function () {
+    if (arena.clientWidth === lastWidth) return;
+    if (!bewegt) { verteile(); return; }
+    var g = berechneGeometrie();
+    lastWidth = g.aw;
+    var ah = arena.clientHeight;
+    if (g.quer) {
+      geo = { dropX: g.aw - g.dropW - 12, dropY: 12, dropW: g.dropW, dropH: ah - 24 };
+    } else {
+      geo = { dropX: 12, dropY: ah - 264, dropW: g.aw - 24, dropH: 260 };
+    }
+    drop.style.left = geo.dropX + 'px';
+    drop.style.top = geo.dropY + 'px';
+    drop.style.width = geo.dropW + 'px';
+    drop.style.height = geo.dropH + 'px';
+    klammereAlle();
+  });
+
+  zeigeTipps();
+  verteile();
+})();
+</script>
+</body>
+</html>
